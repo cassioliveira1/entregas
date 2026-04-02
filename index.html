@@ -403,7 +403,7 @@ function onPhotos(e){Array.from(e.target.files).forEach(f=>{const r=new FileRead
 function renderPhotos(){const g=document.getElementById('photo-grid');g.innerHTML='';S.photos.forEach((p,i)=>{const d=document.createElement('div');d.className='photo-thumb';d.innerHTML=`<img src="${p.data}"><button class="photo-del" onclick="removePhoto(${i})">×</button>`;g.appendChild(d)})}
 function removePhoto(i){S.photos.splice(i,1);renderPhotos()}
 
-async function submitForm(){
+function submitForm(){
   const data=gv('data'),por=gv('por'),cli=gv('cliente'),emb=gv('embarcacao'),eta=gv('etapa');
   if(!data||!por||!cli||!emb||!eta){alert('Preencha todos os campos obrigatórios (*)');return}
   if(!S.items.length){alert('Adicione pelo menos um material');return}
@@ -411,10 +411,18 @@ async function submitForm(){
   for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os materiais');return}mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u')})}
   const num=String(S.seq).padStart(4,'0');
   const btn=document.getElementById('submit-btn');btn.textContent='Enviando…';btn.disabled=true;
-  const payload={seq:num,data,hora:gv('hora'),responsavel:por,cliente:cli,embarcacao:emb,etapa:eta,solicitante:gv('solicitante'),materiais:mats,obs:gv('obs'),fotos:S.photos.map(p=>({name:p.name,data:p.data.split(',')[1],type:p.type}))};
-  try{if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT')await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})}catch(err){console.warn(err)}
+
+  const payload={seq:num,data,hora:gv('hora'),responsavel:por,cliente:cli,embarcacao:emb,etapa:eta,solicitante:gv('solicitante'),materiais:mats,obs:gv('obs')};
+
+  if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
+    const url=SCRIPT_URL+'?payload='+encodeURIComponent(JSON.stringify(payload));
+    const img=new Image();
+    img.src=url;
+  }
+
+  const matStr=mats.map(m=>m.qtd?`${m.desc} — ${m.qtd} ${m.un}`:m.desc).join('; ');
   document.getElementById('sv-num').textContent='Lançamento nº '+num;
-  document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data}${gv('hora')?' às '+gv('hora'):''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${mats.map(m=>m.qtd?`${m.desc} — ${m.qtd} ${m.un}`:m.desc).join('; ')}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${S.photos.length?`<strong>Fotos:</strong> ${S.photos.length} imagem(ns) → pasta ${num} no Drive<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
+  document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data}${gv('hora')?' às '+gv('hora'):''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${matStr}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
   S.seq++;persist();btn.textContent='Registrar entrega';btn.disabled=false;
   document.getElementById('fv').style.display='none';document.getElementById('sv').style.display='block';
 }

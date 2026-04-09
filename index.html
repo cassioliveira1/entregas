@@ -503,8 +503,33 @@ function resetContador(){
   alert('Contador resetado para 0001.');
 }
 
-function init(){hydrate();document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');buildSelects();addItem()}
-init();
+function init(){
+  hydrate();
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('data').value=today;
+  const now=new Date();
+  document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  buildSelects();
+  addItem();
+
+  // busca próximo número da planilha
+  if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
+    window.cb=function(res){
+      if(res.seq){
+        S.seq=res.seq;
+        document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');
+      }
+    };
+    const script=document.createElement('script');
+    script.src=SCRIPT_URL+'?callback=cb&action=nextseq';
+    document.head.appendChild(script);
+  } else {
+    document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');
+  }
+}
+  
+// function init(){hydrate();document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');buildSelects();addItem()}
+// init();
 </script>
 </body>
 </html>

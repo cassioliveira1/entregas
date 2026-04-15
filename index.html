@@ -243,6 +243,7 @@ body {
 <div class="tab-bar">
   <div class="tab-inner">
     <button class="tab-btn active" onclick="showTab('form')">Formulário</button>
+    <button class="tab-btn" onclick="showTab('equip')">Equipamentos</button>
     <button class="tab-btn" onclick="showTab('config')">Configurações</button>
   </div>
 </div>
@@ -315,6 +316,22 @@ body {
   </div>
 </div>
 
+<!-- EQUIPAMENTOS -->
+<div id="equip-tab" style="display:none">
+  <div class="card">
+    <div class="card-title">Equipamentos emprestados</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <select id="equip-filtro" onchange="renderEquip()" style="flex:1;font-family:'Inter',sans-serif;font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <option value="aberto">Em aberto</option>
+        <option value="devolvido">Devolvidos</option>
+        <option value="todos">Todos</option>
+      </select>
+      <button onclick="carregarEquip()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500">&#8635; Atualizar</button>
+    </div>
+    <div id="equip-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Toque em "Atualizar" para carregar.</p></div>
+  </div>
+</div>
+
 <!-- CONFIGURAÇÕES -->
 <div id="config-tab" style="display:none">
   <div class="cfg-card">
@@ -334,6 +351,18 @@ body {
     </div>
   </div>
   <div class="cfg-card">
+    <div class="cfg-title">Casas decimais na quantidade</div>
+    <div class="field" style="margin-bottom:0">
+      <select id="cfg-decimais" onchange="salvarDecimais()">
+        <option value="0">Apenas inteiros (ex: 5)</option>
+        <option value="1">1 casa decimal (ex: 5,5)</option>
+        <option value="2">2 casas decimais (ex: 5,25)</option>
+        <option value="3">3 casas decimais (ex: 5,125)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="cfg-card">
     <div class="info-box">Alterações salvas neste dispositivo e sincronizadas com o Google Sheets após publicação.</div>
   </div>
 </div>
@@ -345,6 +374,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCm2lV4XxQNPTClgxsn
 
 let S = {
   seq:1,
+  casasDecimais:2,
   resp:[{nome:"Cassiano",ativo:true},{nome:"Matheus",ativo:true},{nome:"João",ativo:true},{nome:"Augusto",ativo:true}],
   clientes:[
     {nome:"Cidade",                ativo:true,embs:[{nome:"Capitão Logan II",ativo:true}]},
@@ -354,14 +384,16 @@ let S = {
   photos:[],items:[],ic:0
 };
 
-function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,resp:S.resp,clientes:S.clientes}))}catch(e){} }
-function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.resp)S.resp=d.resp;if(d.clientes)S.clientes=d.clientes;if(d.seq)S.seq=d.seq}catch(e){} }
+function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,resp:S.resp,clientes:S.clientes,casasDecimais:S.casasDecimais}))}catch(e){} }
+function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.resp)S.resp=d.resp;if(d.clientes)S.clientes=d.clientes;if(d.seq)S.seq=d.seq;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais}catch(e){} }
 
 function showTab(t){
   document.getElementById('form-tab').style.display=t==='form'?'block':'none';
+  document.getElementById('equip-tab').style.display=t==='equip'?'block':'none';
   document.getElementById('config-tab').style.display=t==='config'?'block':'none';
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(t==='form'&&i===0)||(t==='config'&&i===1)));
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',(t==='form'&&i===0)||(t==='equip'&&i===1)||(t==='config'&&i===2));});
   if(t==='config')renderConfig();
+  if(t==='equip')carregarEquip();
 }
 
 function buildSelects(){
@@ -391,13 +423,14 @@ function addItem(){
   S.ic++;const id='it'+S.ic;S.items.push(id);
   const c=document.getElementById('items'),div=document.createElement('div');
   div.className='item-card';div.id=id;
-  const step=S.casasDecimais>0?('0.'+'0'.repeat(S.casasDecimais-1)+'1'):'1';
-  div.innerHTML=`<div class="item-header"><span class="item-label" id="${id}_label">Item ${S.items.length}</span>${S.items.length>1?`<button class="remove-btn" onclick="removeItem('${id}')">×</button>`:''}</div>
+  const dec=S.casasDecimais!==undefined?S.casasDecimais:2;
+  const step=dec>0?('0.'+('0'.repeat(dec-1))+'1'):'1';
+  div.innerHTML=`<div class="item-header"><span class="item-label">Item ${S.items.length}</span>${S.items.length>1?`<button class="remove-btn" onclick="removeItem('${id}')">×</button>`:''}</div>
   <div class="row2" style="margin-bottom:10px">
     <div class="field" style="margin-bottom:0"><label>Tipo</label><select id="${id}_tipo" onchange="onTipoChange('${id}')"><option value="material">Material</option><option value="equipamento">Equipamento</option></select></div>
     <div class="field" id="${id}_movdiv" style="display:none;margin-bottom:0"><label>Movimento</label><select id="${id}_mov"><option value="entrega">Entrega</option><option value="devolucao">Devolução</option></select></div>
   </div>
-  <div class="field"><label>Descrição <span class="req">*</span></label><input type="text" id="${id}_d" placeholder="Ex: chapa de aço 4mm, equipamento…"></div>
+  <div class="field"><label>Descrição <span class="req">*</span></label><input type="text" id="${id}_d" placeholder="Ex: chapa de aço 4mm, equipamento..."></div>
   <div class="row2"><div class="field"><label>Quantidade</label><input type="number" id="${id}_q" placeholder="0" min="0" step="${step}" inputmode="decimal"></div>
   <div class="field"><label>Unidade</label><select id="${id}_u"><option>un</option><option>m</option><option>m²</option><option>m³</option><option>kg</option><option>L</option><option>cx</option><option>rolo</option><option>barra</option><option>pc</option></select></div></div>`;
   c.appendChild(div);renumber();
@@ -425,19 +458,38 @@ function submitForm(){
   if(!data||!por||!cli||!emb||!eta){alert('Preencha todos os campos obrigatórios (*)');return}
   if(!S.items.length){alert('Adicione pelo menos um material');return}
   let mats=[];
-  for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os materiais');return}mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u')})}
+  for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os itens');return}const tipo=gv(id+'_tipo')||'material';const mov=tipo==='equipamento'?gv(id+'_mov')||'entrega':'';mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u'),tipo:tipo,mov:mov})}
   const num=String(S.seq).padStart(4,'0');
   const btn=document.getElementById('submit-btn');btn.textContent='Enviando…';btn.disabled=true;
 
   const payload={seq:num,data,hora:hora,responsavel:por,cliente:cli,embarcacao:emb,etapa:eta,solicitante:gv('solicitante'),materiais:mats,obs:gv('obs')};
 
   if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
-    const url=SCRIPT_URL+'?payload='+encodeURIComponent(JSON.stringify(payload));
-    const img=new Image();
-    img.src=url;
+    var _s=document.createElement('script');
+    _s.src=SCRIPT_URL+'?callback=cb&payload='+encodeURIComponent(JSON.stringify(payload));
+    _s.onload=function(){
+      _s.remove();
+      S.photos.forEach(function(foto){
+        fetch(SCRIPT_URL,{
+          method:'POST',
+          mode:'no-cors',
+          headers:{'Content-Type':'text/plain'},
+          body:JSON.stringify({
+            action:'foto',
+            seq:num,
+            data:data,
+            fotoData:foto.data.split(',')[1],
+            fotoType:foto.type,
+            fotoName:foto.name||'foto.jpg'
+          })
+        }).catch(function(e){console.warn(e);});
+      });
+    };
+    _s.onerror=function(){_s.remove();};
+    document.head.appendChild(_s);
   }
 
-  const matStr=mats.map(m=>m.qtd?`${m.desc} — ${m.qtd} ${m.un}`:m.desc).join('; ');
+  const matStr=mats.map(function(m){var base=m.qtd?m.desc+' — '+m.qtd+' '+m.un:m.desc;var tag=m.tipo==='equipamento'?' [Equipamento/'+m.mov+']':'';return base+tag;}).join('; ');
   document.getElementById('sv-num').textContent='Lançamento nº '+num;
   document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data}${hora?' às '+hora:''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${matStr}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
   S.seq++;persist();btn.textContent='Registrar entrega';btn.disabled=false;
@@ -458,7 +510,14 @@ function reset(){
   addItem();
 }
 
-function renderConfig(){renderResp();renderClientes()}
+function renderConfig(){
+  renderResp();
+  renderClientes();
+  var cfgSeq=document.getElementById('cfg-seq-display');
+  if(cfgSeq) cfgSeq.textContent=String(S.seq).padStart(4,'0');
+  var cfgDec=document.getElementById('cfg-decimais');
+  if(cfgDec) cfgDec.value=String(S.casasDecimais!==undefined?S.casasDecimais:2);
+}
 function renderResp(){
   const c=document.getElementById('resp-list');c.innerHTML='';
   S.resp.forEach((r,i)=>{
@@ -493,39 +552,37 @@ function togE(ci,ei){S.clientes[ci].embs[ei].ativo=!S.clientes[ci].embs[ei].ativ
 function delE(ci,ei){if(confirm('Remover embarcação?')){S.clientes[ci].embs.splice(ei,1);persist();renderClientes();buildSelects()}}
 function addE(ci){const v=document.getElementById('ne_'+ci).value.trim();if(!v)return;S.clientes[ci].embs.push({nome:v,ativo:true});persist();renderClientes();buildSelects()}
 
-function init(){hydrate();document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');buildSelects();addItem()}
-init();
-</script>
-</body>
-</html>let equipData=[];
+let equipData=[];
 
 function carregarEquip(){
-  const lista=document.getElementById('equip-lista');
-  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando…</p>';
+  var lista=document.getElementById('equip-lista');
+  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
   if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Configure a URL do script primeiro.</p>';return;}
   window._cbEquip=function(res){equipData=res.equipamentos||[];renderEquip();};
-  const s=document.createElement('script');
+  var s=document.createElement('script');
   s.src=SCRIPT_URL+'?callback=_cbEquip&action=equipamentos';
-  s.onerror=()=>{lista.innerHTML='<p style="font-size:13px;color:var(--danger);text-align:center;padding:1rem">Erro ao carregar.</p>';s.remove();};
+  s.onerror=function(){lista.innerHTML='<p style="font-size:13px;color:var(--danger);text-align:center;padding:1rem">Erro ao carregar. Tente novamente.</p>';s.remove();};
   document.head.appendChild(s);
 }
 
 function renderEquip(){
-  const filtro=document.getElementById('equip-filtro').value;
-  const lista=document.getElementById('equip-lista');
-  let items=filtro==='aberto'?equipData.filter(e=>e.status==='em aberto'):filtro==='devolvido'?equipData.filter(e=>e.status==='devolvido'):equipData;
+  var filtro=document.getElementById('equip-filtro').value;
+  var lista=document.getElementById('equip-lista');
+  var items=equipData;
+  if(filtro==='aberto') items=equipData.filter(function(e){return e.status==='em aberto';});
+  else if(filtro==='devolvido') items=equipData.filter(function(e){return e.status==='devolvido';});
   if(!items.length){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Nenhum equipamento encontrado.</p>';return;}
-  lista.innerHTML=items.map(e=>`
-    <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
-        <span style="font-size:14px;font-weight:500;color:var(--text)">${e.desc}</span>
-        <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;${e.status==='em aberto'?'background:#FEF3C7;color:#92400E':'background:#D1FAE5;color:#065F46'}">${e.status==='em aberto'?'Em aberto':'Devolvido'}</span>
-      </div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.8">
-        📅 ${e.data} &nbsp;·&nbsp; 🚢 ${e.embarcacao} &nbsp;·&nbsp; 👤 ${e.cliente}<br>
-        Solicitante: ${e.solicitante||'—'} &nbsp;·&nbsp; Responsável: ${e.responsavel} &nbsp;·&nbsp; Lançamento nº ${e.seq}
-      </div>
-    </div>`).join('');
+  lista.innerHTML=items.map(function(e){
+    return '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">'+
+      '<span style="font-size:14px;font-weight:500;color:var(--text)">'+e.desc+'</span>'+
+      '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;'+(e.status==='em aberto'?'background:#FEF3C7;color:#92400E':'background:#D1FAE5;color:#065F46')+'">'+(e.status==='em aberto'?'Em aberto':'Devolvido')+'</span>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
+      'Data: '+e.data+' &nbsp;|&nbsp; Embarcacao: '+e.embarcacao+' &nbsp;|&nbsp; Cliente: '+e.cliente+'<br>'+
+      'Solicitante: '+(e.solicitante||'-')+' &nbsp;|&nbsp; Responsavel: '+e.responsavel+' &nbsp;|&nbsp; Lancamento: '+e.seq+
+      '</div></div>';
+  }).join('');
 }
 
 function salvarDecimais(){
@@ -533,4 +590,17 @@ function salvarDecimais(){
   persist();
 }
 
+function resetContador(){
+  if(!confirm('Resetar o contador para 0001? Os registros na planilha não serão afetados.')) return;
+  S.seq=1;persist();
+  document.getElementById('seq-display').textContent='0001';
+  var cfgSeq=document.getElementById('cfg-seq-display');
+  if(cfgSeq) cfgSeq.textContent='0001';
+  alert('Contador resetado para 0001.');
+}
 
+function init(){hydrate();document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');buildSelects();addItem()}
+init();
+</script>
+</body>
+</html>

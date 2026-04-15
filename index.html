@@ -278,9 +278,9 @@ body {
     </div>
 
     <div class="card">
-      <div class="card-title">Materiais</div>
+      <div class="card-title">Materiais/Equipamentos</div>
       <div id="items"></div>
-      <button class="add-mat-btn" onclick="addItem()">+ adicionar material</button>
+      <button class="add-mat-btn" onclick="addItem()">+ adicionar material/equipamento</button>
     </div>
 
     <div class="card">
@@ -441,7 +441,7 @@ function onTipoChange(id){
   document.getElementById(id+'_movdiv').style.display=tipo==='equipamento'?'block':'none';
 }
 function removeItem(id){S.items.splice(S.items.indexOf(id),1);document.getElementById(id).remove();renumber()}
-function renumber(){S.items.forEach((id,i)=>{const el=document.querySelector('#'+id+' .item-label');if(el)el.textContent='Material '+(i+1)})}
+function renumber(){S.items.forEach((id,i)=>{const el=document.querySelector('#'+id+' .item-label');if(el)el.textContent='Material/Equipamento '+(i+1)})}
 
 function onPhotos(e){Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>{S.photos.push({name:f.name,data:ev.target.result,type:f.type});renderPhotos()};r.readAsDataURL(f)});e.target.value=''}
 function renderPhotos(){const g=document.getElementById('photo-grid');g.innerHTML='';S.photos.forEach((p,i)=>{const d=document.createElement('div');d.className='photo-thumb';d.innerHTML=`<img src="${p.data}"><button class="photo-del" onclick="removePhoto(${i})">×</button>`;g.appendChild(d)})}

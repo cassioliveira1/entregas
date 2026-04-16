@@ -438,9 +438,8 @@ function addItem(){
   const dec=S.casasDecimais!==undefined?S.casasDecimais:2;
   const step=dec>0?('0.'+('0'.repeat(dec-1))+'1'):'1';
   div.innerHTML=`<div class="item-header"><span class="item-label">Material/Equipamento ${S.items.length}</span>${S.items.length>1?`<button class="remove-btn" onclick="removeItem('${id}')">×</button>`:''}</div>
-  <div class="row2" style="margin-bottom:10px">
-    <div class="field" style="margin-bottom:0"><label>Tipo</label><select id="${id}_tipo" onchange="onTipoChange('${id}')"><option value="material">Material</option><option value="equipamento">Equipamento</option></select></div>
-    <div class="field" id="${id}_movdiv" style="display:none;margin-bottom:0"><label>Movimento</label><select id="${id}_mov"><option value="entrega">Entrega</option><option value="devolucao">Devolução</option></select></div>
+  <div style="margin-bottom:10px">
+    <div class="field" style="margin-bottom:0"><label>Tipo</label><select id="${id}_tipo"><option value="material">Material</option><option value="equipamento">Equipamento</option></select></div>
   </div>
   <div class="field"><label>Descrição <span class="req">*</span></label><input type="text" id="${id}_d" placeholder="Ex: chapa de aço 4mm, equipamento..."></div>
   <div class="row2"><div class="field"><label>Quantidade</label><input type="number" id="${id}_q" placeholder="0" min="0" step="${step}" inputmode="decimal"></div>
@@ -448,10 +447,6 @@ function addItem(){
   c.appendChild(div);renumber();
 }
 
-function onTipoChange(id){
-  const tipo=document.getElementById(id+'_tipo').value;
-  document.getElementById(id+'_movdiv').style.display=tipo==='equipamento'?'block':'none';
-}
 function removeItem(id){S.items.splice(S.items.indexOf(id),1);document.getElementById(id).remove();renumber()}
 function renumber(){S.items.forEach((id,i)=>{const el=document.querySelector('#'+id+' .item-label');if(el)el.textContent='Material '+(i+1)})}
 
@@ -470,7 +465,7 @@ function submitForm(){
   if(!data||!por||!cli||!emb||!eta){alert('Preencha todos os campos obrigatórios (*)');return}
   if(!S.items.length){alert('Adicione pelo menos um material');return}
   let mats=[];
-  for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os itens');return}const tipo=gv(id+'_tipo')||'material';const mov=tipo==='equipamento'?gv(id+'_mov')||'entrega':'';mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u'),tipo:tipo,mov:mov})}
+  for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os itens');return}const tipo=gv(id+'_tipo')||'material';mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u'),tipo:tipo,mov:tipo==='equipamento'?'entrega':''})}
   const num=String(S.seq).padStart(4,'0');
   const btn=document.getElementById('submit-btn');btn.textContent='Enviando…';btn.disabled=true;
 

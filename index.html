@@ -584,48 +584,58 @@ function renderEquip(){
   if(filtro==='aberto') items=equipData.filter(function(e){return e.status==='em aberto';});
   else if(filtro==='devolvido') items=equipData.filter(function(e){return e.status==='devolvido';});
   if(!items.length){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Nenhum equipamento encontrado.</p>';return;}
-  lista.innerHTML=items.map(function(e,i){
+  lista.innerHTML='';
+  items.forEach(function(e,i){
+    var div=document.createElement('div');
+    div.style.cssText='border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px';
     var aberto=e.qtdAberto||0;
-    var devBtn=e.status==='em aberto'?
-      '<button onclick="abrirDevolucao('+i+')" style="margin-top:10px;width:100%;padding:8px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500">Registrar devolução</button>':'';
-    return '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">'+
+    var bgColor=e.status==='em aberto'?'#FEF3C7':'#D1FAE5';
+    var txColor=e.status==='em aberto'?'#92400E':'#065F46';
+    var statusText=e.status==='em aberto'?'Em aberto':'Devolvido';
+    var qtdInfo=aberto>0?('Em aberto: '+aberto+' '+e.un+(e.qtdDevolvido>0?' | Devolvido: '+e.qtdDevolvido+' '+e.un:'')):'Totalmente devolvido';
+    div.innerHTML=(
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">'+
-      '<span style="font-size:14px;font-weight:500;color:var(--text)">'+e.desc+'</span>'+
-      '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;'+(e.status==='em aberto'?'background:#FEF3C7;color:#92400E':'background:#D1FAE5;color:#065F46')+'">'+(e.status==='em aberto'?'Em aberto':'Devolvido')+'</span>'+
+        '<span style="font-size:14px;font-weight:500;color:var(--text)">'+e.desc+'</span>'+
+        '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;background:'+bgColor+';color:'+txColor+'">'+statusText+'</span>'+
       '</div>'+
       '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
-      'Data: '+e.data+' | Lançamento nº '+e.seq+'<br>'+
-      'Cliente: '+e.cliente+' | Embarcação: '+e.embarcacao+'<br>'+
-      'Solicitante: '+(e.solicitante||'—')+' | Responsável: '+e.responsavel+'<br>'+
-      (aberto>0?'<strong>Em aberto: '+aberto+' '+e.un+'</strong>'+
-        (e.qtdDevolvido>0?' | Devolvido: '+e.qtdDevolvido+' '+e.un:''):'Totalmente devolvido')+
-      '</div>'+devBtn+'</div>';
-  }).join('');
+        'Data: '+e.data+' | Lancamento nr '+e.seq+'<br>'+
+        'Cliente: '+e.cliente+' | Embarcacao: '+e.embarcacao+'<br>'+
+        'Solicitante: '+(e.solicitante||'-')+' | Responsavel: '+e.responsavel+'<br>'+
+        '<strong>'+qtdInfo+'</strong>'+
+      '</div>'
+    );
+    if(e.status==='em aberto'){
+      var btn=document.createElement('button');
+      btn.textContent='Registrar devolucao';
+      btn.style.cssText='margin-top:10px;width:100%;padding:8px;border:1.5px solid var(--accent);border-radius:10px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:13px;font-weight:500';
+      (function(ii){btn.onclick=function(){abrirDevolucao(ii);};})(i);
+      div.appendChild(btn);
+    }
+    lista.appendChild(div);
+  });
 }
 
 function abrirDevolucao(idx){
   var e=equipData[idx];
-  if(!e){return;}
-  var qtd=prompt('Quantas unidades devolver? (Em aberto: '+e.qtdAberto+' '+e.un+')', e.qtdAberto);
-  if(qtd===null) return;
-  qtd=parseFloat(qtd.replace(',','.'));
-  if(isNaN(qtd)||qtd<=0){alert('Quantidade inválida.');return;}
-  if(qtd>e.qtdAberto){alert('Quantidade maior do que o disponível em aberto ('+e.qtdAberto+').');return;}
+  if(!e) return;
+  var qtdStr=prompt('Quantas unidades devolver? Em aberto: '+e.qtdAberto+' '+e.un,String(e.qtdAberto));
+  if(qtdStr===null) return;
+  var qtd=parseFloat(qtdStr.replace(',','.'));
+  if(isNaN(qtd)||qtd<=0){alert('Quantidade invalida.');return;}
+  if(qtd>e.qtdAberto){alert('Quantidade maior do que em aberto: '+e.qtdAberto+'.');return;}
   var resp=gv('por');
-  if(!resp){resp=prompt('Responsável pela devolução:','');}
-  if(!resp){alert('Informe o responsável.');return;}
+  if(!resp) resp=prompt('Responsavel pela devolucao:','');
+  if(!resp){alert('Informe o responsavel.');return;}
   var payload={seq:e.seq,responsavel:resp,cliente:e.cliente,embarcacao:e.embarcacao,
-    etapa:e.etapa,solicitante:e.solicitante,desc:e.desc,qtd:qtd,un:e.un};
-  var _sd=document.createElement('script');
-  _sd.src=SCRIPT_URL+'?callback=_cbDev&action=devolver&payload='+encodeURIComponent(JSON.stringify(payload));
-  window._cbDev=function(res){
-    _sd.remove();
-    if(res.status==='ok'){alert('Devolução registrada com sucesso!');carregarEquip();}
-    else{alert('Erro ao registrar devolução. Tente novamente.');}
-  };
-  _sd.onerror=function(){_sd.remove();alert('Erro de conexão.');};
-  document.head.appendChild(_sd);
+    etapa:e.etapa||'-',solicitante:e.solicitante||'',desc:e.desc,qtd:qtd,un:e.un};
+  var sd=document.createElement('script');
+  sd.src=SCRIPT_URL+'?callback=_cbDev&action=devolver&payload='+encodeURIComponent(JSON.stringify(payload));
+  window._cbDev=function(res){sd.remove();if(res.status==='ok'){alert('Devolucao registrada!');carregarEquip();}else{alert('Erro ao registrar. Tente novamente.');}};
+  sd.onerror=function(){sd.remove();alert('Erro de conexao.');};
+  document.head.appendChild(sd);
 }
+
 
 function salvarDecimais(){
   S.casasDecimais=parseInt(document.getElementById('cfg-decimais').value)||0;

@@ -243,6 +243,7 @@ body {
 <div class="tab-bar">
   <div class="tab-inner">
     <button class="tab-btn active" onclick="showTab('form')">Formulário</button>
+    <button class="tab-btn" onclick="showTab('mats')">Materiais</button>
     <button class="tab-btn" onclick="showTab('equip')">Equipamentos</button>
     <button class="tab-btn" onclick="showTab('config')">Configurações</button>
   </div>
@@ -316,6 +317,20 @@ body {
   </div>
 </div>
 
+<!-- MATERIAIS -->
+<div id="mats-tab" style="display:none">
+  <div class="card">
+    <div class="card-title">Materiais entregues — últimos 5 dias</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <select id="mats-filtro-cli" onchange="renderMats()" style="flex:1;font-family:'Inter',sans-serif;font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <option value="">Todos os clientes</option>
+      </select>
+      <button onclick="carregarMats()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500">&#8635; Atualizar</button>
+    </div>
+    <div id="mats-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Toque em "Atualizar" para carregar.</p></div>
+  </div>
+</div>
+
 <!-- EQUIPAMENTOS -->
 <div id="equip-tab" style="display:none">
   <div class="card">
@@ -364,14 +379,26 @@ body {
 
   <div class="cfg-card">
     <div class="cfg-title">Contador de lançamentos</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <div>
         <div style="font-size:13px;color:var(--text2)">Próximo lançamento</div>
         <div style="font-size:28px;font-weight:600;color:var(--text);letter-spacing:.04em" id="cfg-seq-display">0001</div>
       </div>
     </div>
-    <button onclick="resetContador()" style="width:100%;padding:10px;border:1.5px solid var(--danger);border-radius:var(--radius);background:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;color:var(--danger)">Resetar contador para 0001</button>
-    <p style="font-size:11px;color:var(--text3);margin-top:8px">Use apenas para reiniciar o sistema. Os registros já gravados na planilha não são afetados.</p>
+  </div>
+
+  <div class="cfg-card" style="border:1.5px solid var(--danger)">
+    <div class="cfg-title" style="color:var(--danger)">Redefinir aos padrões de fábrica</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Apaga o histórico local do dispositivo. Os registros na planilha do Google Sheets não são afetados.</p>
+    <div class="field" style="margin-bottom:12px">
+      <label>O que apagar</label>
+      <select id="factory-tipo" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <option value="ambos">Materiais e equipamentos</option>
+        <option value="materiais">Apenas materiais</option>
+        <option value="equipamentos">Apenas equipamentos</option>
+      </select>
+    </div>
+    <button onclick="factoryReset()" style="width:100%;padding:10px;border:1.5px solid var(--danger);border-radius:var(--radius);background:none;cursor:pointer;font-size:14px;font-weight:500;color:var(--danger)">Apagar histórico local</button>
   </div>
 
   <div class="cfg-card">
@@ -401,11 +428,13 @@ function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');
 
 function showTab(t){
   document.getElementById('form-tab').style.display=t==='form'?'block':'none';
+  document.getElementById('mats-tab').style.display=t==='mats'?'block':'none';
   document.getElementById('equip-tab').style.display=t==='equip'?'block':'none';
   document.getElementById('config-tab').style.display=t==='config'?'block':'none';
-  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',(t==='form'&&i===0)||(t==='equip'&&i===1)||(t==='config'&&i===2));});
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',(t==='form'&&i===0)||(t==='mats'&&i===1)||(t==='equip'&&i===2)||(t==='config'&&i===3));});
   if(t==='config')renderConfig();
   if(t==='equip')carregarEquip();
+  if(t==='mats')carregarMats();
 }
 
 function buildSelects(){
@@ -614,21 +643,54 @@ function renderEquip(){
 function abrirDevolucao(idx){
   var e=equipData[idx];
   if(!e) return;
-  var qtdStr=prompt('Quantas unidades devolver? Em aberto: '+e.qtdAberto+' '+e.un,String(e.qtdAberto));
-  if(qtdStr===null) return;
-  var qtd=parseFloat(qtdStr.replace(',','.'));
-  if(isNaN(qtd)||qtd<=0){alert('Quantidade invalida.');return;}
-  if(qtd>e.qtdAberto){alert('Quantidade maior do que em aberto: '+e.qtdAberto+'.');return;}
-  var resp=gv('por');
-  if(!resp) resp=prompt('Responsavel pela devolucao:','');
-  if(!resp){alert('Informe o responsavel.');return;}
-  var payload={seq:e.seq,responsavel:resp,cliente:e.cliente,embarcacao:e.embarcacao,
-    etapa:e.etapa||'-',solicitante:e.solicitante||'',desc:e.desc,qtd:qtd,un:e.un};
-  var sd=document.createElement('script');
-  sd.src=SCRIPT_URL+'?callback=_cbDev&action=devolver&payload='+encodeURIComponent(JSON.stringify(payload));
-  window._cbDev=function(res){sd.remove();if(res.status==='ok'){alert('Devolucao registrada!');carregarEquip();}else{alert('Erro ao registrar. Tente novamente.');}};
-  sd.onerror=function(){sd.remove();alert('Erro de conexao.');};
-  document.head.appendChild(sd);
+
+  // Build modal overlay
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem';
+
+  var modal=document.createElement('div');
+  modal.style.cssText='background:var(--surface);border-radius:var(--radius-lg);padding:1.25rem;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.2)';
+
+  var respOpts=S.resp.filter(function(r){return r.ativo;}).map(function(r){
+    return '<option value="'+r.nome+'">'+r.nome+'</option>';
+  }).join('');
+
+  modal.innerHTML=(
+    '<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">Registrar devolução</div>'+
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:16px">'+e.desc+' — '+e.cliente+' / '+e.embarcacao+'</div>'+
+    '<div class="field"><label>Quantidade a devolver <span class="req">*</span></label>'+
+    '<input type="number" id="dev-qtd" value="'+e.qtdAberto+'" min="0.01" max="'+e.qtdAberto+'" step="0.01" inputmode="decimal" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">'+
+    '<p style="font-size:11px;color:var(--text3);margin-top:3px">Em aberto: '+e.qtdAberto+' '+e.un+'</p></div>'+
+    '<div class="field"><label>Responsável <span class="req">*</span></label>'+
+    '<select id="dev-resp" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">'+
+    '<option value="">Selecionar</option>'+respOpts+'</select></div>'+
+    '<div style="display:flex;gap:8px;margin-top:16px">'+
+    '<button id="dev-cancel" style="flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:var(--radius);background:none;cursor:pointer;font-size:14px;color:var(--text2)">Cancelar</button>'+
+    '<button id="dev-confirm" style="flex:1;padding:10px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;font-size:14px;font-weight:500">Confirmar</button>'+
+    '</div>'
+  );
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  document.getElementById('dev-cancel').onclick=function(){document.body.removeChild(overlay);};
+  overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
+
+  document.getElementById('dev-confirm').onclick=function(){
+    var qtd=parseFloat(String(document.getElementById('dev-qtd').value).replace(',','.'));
+    var resp=document.getElementById('dev-resp').value;
+    if(isNaN(qtd)||qtd<=0){alert('Informe uma quantidade válida.');return;}
+    if(qtd>e.qtdAberto){alert('Quantidade maior que o em aberto ('+e.qtdAberto+').');return;}
+    if(!resp){alert('Selecione o responsável.');return;}
+    document.body.removeChild(overlay);
+    var payload={seq:e.seq,responsavel:resp,cliente:e.cliente,embarcacao:e.embarcacao,
+      etapa:e.etapa||'-',solicitante:e.solicitante||'',desc:e.desc,qtd:qtd,un:e.un};
+    var sd=document.createElement('script');
+    sd.src=SCRIPT_URL+'?callback=_cbDev&action=devolver&payload='+encodeURIComponent(JSON.stringify(payload));
+    window._cbDev=function(res){sd.remove();if(res.status==='ok'){alert('Devolução registrada!');carregarEquip();}else{alert('Erro ao registrar. Tente novamente.');}};
+    sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
+    document.head.appendChild(sd);
+  };
 }
 
 
@@ -644,6 +706,62 @@ function resetContador(){
   var cfgSeq=document.getElementById('cfg-seq-display');
   if(cfgSeq) cfgSeq.textContent='0001';
   alert('Contador resetado para 0001.');
+}
+
+let matsData=[];
+
+function carregarMats(){
+  var lista=document.getElementById('mats-lista');
+  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
+  if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Configure a URL do script primeiro.</p>';return;}
+  window._cbMats=function(res){
+    matsData=res.materiais||[];
+    // populate client filter
+    var cliSel=document.getElementById('mats-filtro-cli');
+    var prevCli=cliSel.value;
+    cliSel.innerHTML='<option value="">Todos os clientes</option>';
+    var clis={};
+    matsData.forEach(function(m){if(m.cliente&&!clis[m.cliente]){clis[m.cliente]=1;var o=document.createElement('option');o.value=m.cliente;o.textContent=m.cliente;cliSel.appendChild(o);}});
+    if(prevCli) cliSel.value=prevCli;
+    renderMats();
+  };
+  var s=document.createElement('script');
+  s.src=SCRIPT_URL+'?callback=_cbMats&action=materiais';
+  s.onerror=function(){lista.innerHTML='<p style="font-size:13px;color:var(--danger);text-align:center;padding:1rem">Erro ao carregar. Tente novamente.</p>';s.remove();};
+  document.head.appendChild(s);
+}
+
+function renderMats(){
+  var filtro=document.getElementById('mats-filtro-cli').value;
+  var lista=document.getElementById('mats-lista');
+  var items=filtro?matsData.filter(function(m){return m.cliente===filtro;}):matsData;
+  if(!items.length){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Nenhum material encontrado nos últimos 5 dias.</p>';return;}
+  lista.innerHTML='';
+  items.forEach(function(m){
+    var div=document.createElement('div');
+    div.style.cssText='border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px';
+    div.innerHTML=(
+      '<div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:6px">'+m.desc+(m.qtd?' &mdash; '+m.qtd+' '+m.un:'')+'</div>'+
+      '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
+        'Data: '+m.data+' | Lançamento nº '+m.seq+'<br>'+
+        'Cliente: '+m.cliente+' | Embarcação: '+m.embarcacao+'<br>'+
+        'Etapa: '+m.etapa+'<br>'+
+        'Solicitante: '+(m.solicitante||'—')+' | Responsável: '+m.responsavel+
+      '</div>'
+    );
+    lista.appendChild(div);
+  });
+}
+
+function factoryReset(){
+  var tipo=document.getElementById('factory-tipo').value;
+  var label=tipo==='ambos'?'materiais e equipamentos':tipo;
+  if(!confirm('Apagar histórico local de '+label+'? Os registros na planilha não serão afetados.')) return;
+  // localStorage stores configs (resp, clientes, seq) — we don't clear those
+  // Factory reset just clears matsData and equipData cached locally
+  matsData=[];
+  equipData=[];
+  alert('Histórico local de '+label+' apagado neste dispositivo.');
 }
 
 function init(){hydrate();document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');buildSelects();addItem()}

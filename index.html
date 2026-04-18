@@ -257,8 +257,8 @@ body {
     <div class="card">
       <div class="card-title">Identificação</div>
       <div class="seq-row">
-        <span class="seq-label">Nº do lançamento</span>
-        <span class="seq-num" id="seq-display">0001</span>
+        <span class="seq-label">Nº / Ano</span>
+        <span class="seq-num" id="seq-display">0001/26</span>
       </div>
       <div class="row2">
         <div class="field"><label>Data <span class="req">*</span></label><input type="date" id="data"></div>
@@ -402,6 +402,15 @@ body {
   </div>
 
   <div class="cfg-card">
+    <div class="cfg-title">Unidades de medida</div>
+    <div id="unidades-list"></div>
+    <div class="add-row">
+      <input type="text" id="new-unidade" placeholder="Nova unidade (ex: t, galão...)">
+      <button class="add-row-btn" onclick="addUnidade()">+ Adicionar</button>
+    </div>
+  </div>
+
+  <div class="cfg-card">
     <div class="info-box">Alterações salvas neste dispositivo e sincronizadas com o Google Sheets após publicação.</div>
   </div>
 </div>
@@ -413,6 +422,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCm2lV4XxQNPTClgxsn
 
 let S = {
   seq:1,
+  ano: new Date().getFullYear(),
   casasDecimais:2,
   resp:[{nome:"Cassiano",ativo:true},{nome:"Matheus",ativo:true},{nome:"João",ativo:true},{nome:"Augusto",ativo:true}],
   clientes:[
@@ -420,11 +430,16 @@ let S = {
     {nome:"Navetrans",             ativo:true,embs:[{nome:"Mariuá 35M",ativo:true}]},
     {nome:"Construtora Amazônidas",ativo:true,embs:[{nome:"Triunfo",ativo:true}]},
   ],
+  unidades:[
+    {nome:'un',ativo:true},{nome:'m',ativo:true},{nome:'m²',ativo:true},
+    {nome:'m³',ativo:true},{nome:'kg',ativo:true},{nome:'L',ativo:true},
+    {nome:'cx',ativo:true},{nome:'rolo',ativo:true},{nome:'barra',ativo:true},{nome:'pc',ativo:true}
+  ],
   photos:[],items:[],ic:0
 };
 
-function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,resp:S.resp,clientes:S.clientes,casasDecimais:S.casasDecimais}))}catch(e){} }
-function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.resp)S.resp=d.resp;if(d.clientes)S.clientes=d.clientes;if(d.seq)S.seq=d.seq;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais}catch(e){} }
+function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,ano:S.ano,resp:S.resp,clientes:S.clientes,casasDecimais:S.casasDecimais,unidades:S.unidades}))}catch(e){} }
+function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.resp)S.resp=d.resp;if(d.clientes)S.clientes=d.clientes;if(d.seq)S.seq=d.seq;if(d.ano)S.ano=d.ano;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais;if(d.unidades)S.unidades=d.unidades}catch(e){} }
 
 function showTab(t){
   document.getElementById('form-tab').style.display=t==='form'?'block':'none';
@@ -472,7 +487,7 @@ function addItem(){
   </div>
   <div class="field"><label>Descrição <span class="req">*</span></label><input type="text" id="${id}_d" placeholder="Ex: chapa de aço 4mm, equipamento..."></div>
   <div class="row2"><div class="field"><label>Quantidade</label><input type="number" id="${id}_q" placeholder="0" min="0" step="${step}" inputmode="decimal"></div>
-  <div class="field"><label>Unidade</label><select id="${id}_u"><option>un</option><option>m</option><option>m²</option><option>m³</option><option>kg</option><option>L</option><option>cx</option><option>rolo</option><option>barra</option><option>pc</option></select></div></div>`;
+  <div class="field"><label>Unidade</label><select id="${id}_u">${S.unidades.filter(function(u){return u.ativo;}).map(function(u){return '<option>'+u.nome+'</option>';}).join('')}</select></div></div>`;
   c.appendChild(div);renumber();
 }
 
@@ -495,7 +510,7 @@ function submitForm(){
   if(!S.items.length){alert('Adicione pelo menos um material');return}
   let mats=[];
   for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os itens');return}const tipo=gv(id+'_tipo')||'material';mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u'),tipo:tipo,mov:tipo==='equipamento'?'entrega':''})}
-  const num=String(S.seq).padStart(4,'0');
+  var anoAtual=new Date().getFullYear();if(S.ano&&anoAtual>S.ano){S.seq=1;S.ano=anoAtual;}var yyStr=String(S.ano||anoAtual).slice(-2);const num=String(S.seq).padStart(4,'0')+'/'+yyStr;
   const btn=document.getElementById('submit-btn');btn.textContent='Enviando…';btn.disabled=true;
 
   const payload={seq:num,data,hora:hora,responsavel:por,cliente:cli,embarcacao:emb,etapa:eta,solicitante:gv('solicitante'),materiais:mats,obs:gv('obs')};
@@ -527,7 +542,7 @@ function submitForm(){
 
   const matStr=mats.map(function(m){var base=m.qtd?m.desc+' — '+m.qtd+' '+m.un:m.desc;var tag=m.tipo==='equipamento'?' [Equipamento/'+m.mov+']':'';return base+tag;}).join('; ');
   document.getElementById('sv-num').textContent='Lançamento nº '+num;
-  document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data}${hora?' às '+hora:''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${matStr}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
+  document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data.split('-').reverse().join('/')}${hora?' às '+hora:''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${matStr}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
   S.seq++;persist();btn.textContent='Registrar entrega';btn.disabled=false;
   document.getElementById('fv').style.display='none';document.getElementById('sv').style.display='block';
 }
@@ -539,18 +554,38 @@ function reset(){
   document.getElementById('embarcacao').disabled=true;
   document.getElementById('items').innerHTML='';document.getElementById('photo-grid').innerHTML='';
   S.photos=[];S.items=[];S.ic=0;
-  document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');
+  var _yy=String(S.ano||new Date().getFullYear()).slice(-2);document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0')+'/'+_yy;
   document.getElementById('fv').style.display='block';document.getElementById('sv').style.display='none';
   const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;
   const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   addItem();
 }
 
+function renderUnidades(){
+  var c=document.getElementById('unidades-list');if(!c)return;c.innerHTML='';
+  S.unidades.forEach(function(u,i){
+    var row=document.createElement('div');row.className='cfg-row';
+    row.innerHTML='<span class="cfg-name '+(u.ativo?'':'off')+'" id="un_n_'+i+'">'+u.nome+'</span>'+
+      '<input class="cfg-edit-inp" id="un_e_'+i+'" value="'+u.nome+'">'+
+      '<button class="icon-btn" id="un_b_'+i+'" onclick="editU('+i+')" title="Alterar">&#9998;</button>'+
+      '<button class="save-inline" id="un_s_'+i+'" onclick="saveU('+i+')">salvar</button>'+
+      '<button class="toggle '+(u.ativo?'on':'off')+'" onclick="togU('+i+')"></button>'+
+      '<button class="icon-btn danger" onclick="delU('+i+')">&#215;</button>';
+    c.appendChild(row);
+  });
+}
+function editU(i){document.getElementById('un_n_'+i).style.display='none';document.getElementById('un_e_'+i).style.display='block';document.getElementById('un_b_'+i).style.display='none';document.getElementById('un_s_'+i).style.display='inline-block';document.getElementById('un_e_'+i).focus();}
+function saveU(i){var v=document.getElementById('un_e_'+i).value.trim();if(!v)return;S.unidades[i].nome=v;persist();renderUnidades();}
+function togU(i){S.unidades[i].ativo=!S.unidades[i].ativo;persist();renderUnidades();}
+function delU(i){if(confirm('Remover unidade '+S.unidades[i].nome+'?')){S.unidades.splice(i,1);persist();renderUnidades();}}
+function addUnidade(){var v=document.getElementById('new-unidade').value.trim();if(!v)return;S.unidades.push({nome:v,ativo:true});document.getElementById('new-unidade').value='';persist();renderUnidades();}
+
 function renderConfig(){
   renderResp();
   renderClientes();
+  renderUnidades();
   var cfgSeq=document.getElementById('cfg-seq-display');
-  if(cfgSeq) cfgSeq.textContent=String(S.seq).padStart(4,'0');
+  if(cfgSeq) cfgSeq.textContent=String(S.seq).padStart(4,'0')+'/'+String(S.ano||new Date().getFullYear()).slice(-2);
   var cfgDec=document.getElementById('cfg-decimais');
   if(cfgDec) cfgDec.value=String(S.casasDecimais!==undefined?S.casasDecimais:2);
 }
@@ -623,10 +658,10 @@ function renderEquip(){
         '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;background:'+bgColor+';color:'+txColor+'">'+statusText+'</span>'+
       '</div>'+
       '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
-        'Data: '+e.data+' | Lancamento nr '+e.seq+'<br>'+
+        'Data: '+e.data+(e.hora?' às '+e.hora:'')+' | Lançamento nº '+e.seq+'<br>'+
         'Cliente: '+e.cliente+' | Embarcacao: '+e.embarcacao+'<br>'+
         'Solicitante: '+(e.solicitante||'-')+' | Responsavel: '+e.responsavel+'<br>'+
-        '<strong>'+qtdInfo+'</strong>'+
+        '<strong>'+qtdInfo+'</strong>'+(e.dataDev?'<br>Devolução: '+e.dataDev+(e.horaDev?' às '+e.horaDev:'')+' — '+e.respDev:'')+
       '</div>'
     );
     if(e.status==='em aberto'){
@@ -636,6 +671,18 @@ function renderEquip(){
       (function(ii){btn.onclick=function(){abrirDevolucao(ii);};})(i);
       div.appendChild(btn);
     }
+    var eActDiv=document.createElement('div');
+    eActDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
+    var eEditBtn=document.createElement('button');
+    eEditBtn.textContent='Editar';
+    eEditBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
+    (function(ii){eEditBtn.onclick=function(){editarLancamento(equipData[ii],'equipamento');};})(i);
+    var eDelBtn=document.createElement('button');
+    eDelBtn.textContent='Apagar';
+    eDelBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
+    (function(ii){eDelBtn.onclick=function(){apagarLancamento(equipData[ii]);};})(i);
+    eActDiv.appendChild(eEditBtn);eActDiv.appendChild(eDelBtn);
+    div.appendChild(eActDiv);
     lista.appendChild(div);
   });
 }
@@ -702,7 +749,7 @@ function salvarDecimais(){
 function resetContador(){
   if(!confirm('Resetar o contador para 0001? Os registros na planilha não serão afetados.')) return;
   S.seq=1;persist();
-  document.getElementById('seq-display').textContent='0001';
+  document.getElementById('seq-display').textContent='0001/'+String(S.ano||new Date().getFullYear()).slice(-2);
   var cfgSeq=document.getElementById('cfg-seq-display');
   if(cfgSeq) cfgSeq.textContent='0001';
   alert('Contador resetado para 0001.');
@@ -743,14 +790,75 @@ function renderMats(){
     div.innerHTML=(
       '<div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:6px">'+m.desc+(m.qtd?' &mdash; '+m.qtd+' '+m.un:'')+'</div>'+
       '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
-        'Data: '+m.data+' | Lançamento nº '+m.seq+'<br>'+
+        'Data: '+m.data+(m.hora?' às '+m.hora:'')+' | Lançamento nº '+m.seq+'<br>'+
         'Cliente: '+m.cliente+' | Embarcação: '+m.embarcacao+'<br>'+
         'Etapa: '+m.etapa+'<br>'+
         'Solicitante: '+(m.solicitante||'—')+' | Responsável: '+m.responsavel+
       '</div>'
     );
+        var editBtn=document.createElement('button');
+    editBtn.textContent='Editar';
+    editBtn.style.cssText='margin-top:10px;margin-right:6px;padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
+    (function(mm){editBtn.onclick=function(){editarLancamento(mm,'material');};})(m);
+    var delBtn=document.createElement('button');
+    delBtn.textContent='Apagar';
+    delBtn.style.cssText='margin-top:10px;padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
+    (function(mm){delBtn.onclick=function(){apagarLancamento(mm);};})(m);
+    var actDiv=document.createElement('div');
+    actDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
+    actDiv.appendChild(editBtn);actDiv.appendChild(delBtn);
+    div.appendChild(actDiv);
     lista.appendChild(div);
   });
+}
+
+function editarLancamento(item, tipo){
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
+  var modal=document.createElement('div');
+  modal.style.cssText='background:var(--surface);border-radius:var(--radius-lg);padding:1.25rem;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.2)';
+  modal.innerHTML=(
+    '<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px">Editar lançamento nº '+item.seq+'</div>'+
+    '<div class="field"><label>Descrição</label><input id="ed-desc" type="text" value="'+item.desc+'" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
+    '<div class="row2">'+
+      '<div class="field"><label>Quantidade</label><input id="ed-qtd" type="number" value="'+(item.qtd||'')+'" step="0.01" inputmode="decimal" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
+      '<div class="field"><label>Unidade</label><input id="ed-un" type="text" value="'+(item.un||'')+'" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
+    '</div>'+
+    '<div class="field"><label>Etapa</label><input id="ed-etapa" type="text" value="'+(item.etapa||'')+'" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
+    '<div class="field"><label>Observações</label><textarea id="ed-obs" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);min-height:60px;resize:vertical">'+(item.obs||'')+'</textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-top:8px">'+
+      '<button id="ed-cancel" style="flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:var(--radius);background:none;cursor:pointer;font-size:14px;color:var(--text2)">Cancelar</button>'+
+      '<button id="ed-save" style="flex:1;padding:10px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;font-size:14px;font-weight:500">Salvar</button>'+
+    '</div>'
+  );
+  overlay.appendChild(modal);document.body.appendChild(overlay);
+  document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};
+  overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
+  document.getElementById('ed-save').onclick=function(){
+    var payload={seq:item.seq,cliente:item.cliente,embarcacao:item.embarcacao,
+      desc:document.getElementById('ed-desc').value.trim(),
+      qtd:document.getElementById('ed-qtd').value,
+      un:document.getElementById('ed-un').value.trim(),
+      etapa:document.getElementById('ed-etapa').value.trim(),
+      obs:document.getElementById('ed-obs').value.trim(),
+      tipo:tipo};
+    if(!payload.desc){alert('Descrição obrigatória.');return;}
+    document.body.removeChild(overlay);
+    var sd=document.createElement('script');
+    sd.src=SCRIPT_URL+'?callback=_cbEdit&action=editar&payload='+encodeURIComponent(JSON.stringify(payload));
+    window._cbEdit=function(res){sd.remove();if(res.status==='ok'){alert('Lançamento atualizado!');if(tipo==='equipamento')carregarEquip();else carregarMats();}else{alert('Erro ao salvar. Tente novamente.');}};
+    sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
+    document.head.appendChild(sd);
+  };
+}
+
+function apagarLancamento(item){
+  if(!confirm('Apagar o lançamento nº '+item.seq+' ('+item.desc+')? Esta ação não pode ser desfeita na planilha.')) return;
+  var sd=document.createElement('script');
+  sd.src=SCRIPT_URL+'?callback=_cbDel&action=apagar&payload='+encodeURIComponent(JSON.stringify({seq:item.seq,desc:item.desc,cliente:item.cliente,embarcacao:item.embarcacao}));
+  window._cbDel=function(res){sd.remove();if(res.status==='ok'){alert('Lançamento apagado!');carregarMats();carregarEquip();}else{alert('Erro ao apagar. Tente novamente.');}};
+  sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
+  document.head.appendChild(sd);
 }
 
 function factoryReset(){
@@ -764,7 +872,30 @@ function factoryReset(){
   alert('Histórico local de '+label+' apagado neste dispositivo.');
 }
 
-function init(){hydrate();document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0');const today=new Date().toISOString().split('T')[0];document.getElementById('data').value=today;const now=new Date();document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');buildSelects();addItem()}
+function init(){
+  hydrate();
+  var _yy=String(S.ano||new Date().getFullYear()).slice(-2);
+  document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0')+'/'+_yy;
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('data').value=today;
+  const now=new Date();
+  document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  buildSelects();addItem();
+  if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
+    window.cb=function(res){
+      if(res&&res.seq){
+        S.seq=res.seq;
+        if(res.ano)S.ano=res.ano;
+        persist();
+        var _yy2=String(S.ano||new Date().getFullYear()).slice(-2);
+        document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0')+'/'+_yy2;
+      }
+    };
+    var _si=document.createElement('script');
+    _si.src=SCRIPT_URL+'?callback=cb&action=nextseq';
+    document.head.appendChild(_si);
+  }
+}
 init();
 </script>
 </body>

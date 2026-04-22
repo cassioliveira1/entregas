@@ -661,7 +661,7 @@ function renderEquip(){
         'Data: '+e.data+(e.hora?' às '+e.hora:'')+' | Lançamento nº '+e.seq+'<br>'+
         'Cliente: '+e.cliente+' | Embarcacao: '+e.embarcacao+'<br>'+
         'Solicitante: '+(e.solicitante||'-')+' | Responsavel: '+e.responsavel+'<br>'+
-        '<strong>'+qtdInfo+'</strong>'+(e.dataDev?'<br>Devolução: '+e.dataDev+(e.horaDev?' às '+e.horaDev:'')+' — '+e.respDev:'')+
+        '<strong>'+qtdInfo+'</strong>'+(e.dataDev?('<br><span style="color:var(--success,#12B76A)">&#10003; Devolução: '+e.dataDev+(e.horaDev?' às '+e.horaDev:'')+' | Resp. devolução: '+e.respDev+'</span>'):'')+
       '</div>'
     );
     if(e.status==='em aberto'){
@@ -817,26 +817,33 @@ function editarLancamento(item, tipo){
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
   var modal=document.createElement('div');
   modal.style.cssText='background:var(--surface);border-radius:var(--radius-lg);padding:1.25rem;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.2)';
+  var fs='width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:10px;background:var(--surface);color:var(--text)';
   modal.innerHTML=(
     '<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px">Editar lançamento nº '+item.seq+'</div>'+
-    '<div class="field"><label>Descrição</label><input id="ed-desc" type="text" value="'+item.desc+'" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
-    '<div class="row2">'+
-      '<div class="field"><label>Quantidade</label><input id="ed-qtd" type="number" value="'+(item.qtd||'')+'" step="0.01" inputmode="decimal" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
-      '<div class="field"><label>Unidade</label><input id="ed-un" type="text" value="'+(item.un||'')+'" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
+    '<div class="field"><label>Descrição</label><input id="ed-desc" type="text" value="'+(item.desc||'')+'" style="'+fs+'"></div>'+
+    '<div class="field"><label>Solicitante</label><input id="ed-sol" type="text" value="'+(item.solicitante||'')+'" style="'+fs+'"></div>'+
+    '<div class="field"><label>Cliente</label><input id="ed-cli" type="text" value="'+(item.cliente||'')+'" style="'+fs+'"></div>'+
+    '<div class="field"><label>Embarcação</label><input id="ed-emb" type="text" value="'+(item.embarcacao||'')+'" style="'+fs+'"></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+      '<div class="field"><label>Quantidade</label><input id="ed-qtd" type="number" value="'+(item.qtd||'')+'" step="0.01" inputmode="decimal" style="'+fs+'"></div>'+
+      '<div class="field"><label>Unidade</label><input id="ed-un" type="text" value="'+(item.un||'')+'" style="'+fs+'"></div>'+
     '</div>'+
-    '<div class="field"><label>Etapa</label><input id="ed-etapa" type="text" value="'+(item.etapa||'')+'" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)"></div>'+
-    '<div class="field"><label>Observações</label><textarea id="ed-obs" style="width:100%;font-size:15px;padding:9px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);min-height:60px;resize:vertical">'+(item.obs||'')+'</textarea></div>'+
-    '<div style="display:flex;gap:8px;margin-top:8px">'+
-      '<button id="ed-cancel" style="flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:var(--radius);background:none;cursor:pointer;font-size:14px;color:var(--text2)">Cancelar</button>'+
-      '<button id="ed-save" style="flex:1;padding:10px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;font-size:14px;font-weight:500">Salvar</button>'+
+    '<div class="field"><label>Etapa</label><input id="ed-etapa" type="text" value="'+(item.etapa||'')+'" style="'+fs+'"></div>'+
+    '<div class="field"><label>Observações</label><textarea id="ed-obs" style="'+fs+';min-height:60px;resize:vertical">'+(item.obs||'')+'</textarea></div>'+
+    '<div style="display:flex;gap:8px;margin-top:12px">'+
+      '<button id="ed-cancel" style="flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:10px;background:none;cursor:pointer;font-size:14px;color:var(--text2)">Cancelar</button>'+
+      '<button id="ed-save" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;font-size:14px;font-weight:500">Salvar</button>'+
     '</div>'
   );
   overlay.appendChild(modal);document.body.appendChild(overlay);
   document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
-    var payload={seq:item.seq,cliente:item.cliente,embarcacao:item.embarcacao,
+    var payload={seq:item.seq,
       desc:document.getElementById('ed-desc').value.trim(),
+      solicitante:document.getElementById('ed-sol').value.trim(),
+      cliente:document.getElementById('ed-cli').value.trim(),
+      embarcacao:document.getElementById('ed-emb').value.trim(),
       qtd:document.getElementById('ed-qtd').value,
       un:document.getElementById('ed-un').value.trim(),
       etapa:document.getElementById('ed-etapa').value.trim(),
@@ -851,7 +858,6 @@ function editarLancamento(item, tipo){
     document.head.appendChild(sd);
   };
 }
-
 function apagarLancamento(item){
   if(!confirm('Apagar o lançamento nº '+item.seq+' ('+item.desc+')? Esta ação não pode ser desfeita na planilha.')) return;
   var sd=document.createElement('script');

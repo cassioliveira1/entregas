@@ -349,6 +349,7 @@ body {
 
 <!-- CONFIGURAÇÕES -->
 <div id="config-tab" style="display:none">
+  <div style="padding:4px 0 8px"><p style="font-size:12px;color:var(--text3)" id="cfg-sync-status"></p></div>
   <div class="cfg-card">
     <div class="cfg-title">Responsáveis</div>
     <div id="resp-list"></div>
@@ -575,10 +576,10 @@ function renderUnidades(){
   });
 }
 function editU(i){document.getElementById('un_n_'+i).style.display='none';document.getElementById('un_e_'+i).style.display='block';document.getElementById('un_b_'+i).style.display='none';document.getElementById('un_s_'+i).style.display='inline-block';document.getElementById('un_e_'+i).focus();}
-function saveU(i){var v=document.getElementById('un_e_'+i).value.trim();if(!v)return;S.unidades[i].nome=v;persist();renderUnidades();}
-function togU(i){S.unidades[i].ativo=!S.unidades[i].ativo;persist();renderUnidades();}
-function delU(i){if(confirm('Remover unidade '+S.unidades[i].nome+'?')){S.unidades.splice(i,1);persist();renderUnidades();}}
-function addUnidade(){var v=document.getElementById('new-unidade').value.trim();if(!v)return;S.unidades.push({nome:v,ativo:true});document.getElementById('new-unidade').value='';persist();renderUnidades();}
+function saveU(i){var v=document.getElementById('un_e_'+i).value.trim();if(!v)return;S.unidades[i].nome=v;persist();salvarConfigs();renderUnidades();}
+function togU(i){S.unidades[i].ativo=!S.unidades[i].ativo;persist();salvarConfigs();renderUnidades();}
+function delU(i){if(confirm('Remover unidade '+S.unidades[i].nome+'?')){S.unidades.splice(i,1);persist();salvarConfigs();renderUnidades();}}
+function addUnidade(){var v=document.getElementById('new-unidade').value.trim();if(!v)return;S.unidades.push({nome:v,ativo:true});document.getElementById('new-unidade').value='';persist();salvarConfigs();renderUnidades();}
 
 function renderConfig(){
   renderResp();
@@ -598,10 +599,10 @@ function renderResp(){
   });
 }
 function editR(i){document.getElementById('rn_'+i).style.display='none';document.getElementById('re_'+i).style.display='block';document.getElementById('rb_'+i).style.display='none';document.getElementById('rs_'+i).style.display='inline-block';document.getElementById('re_'+i).focus()}
-function saveR(i){const v=document.getElementById('re_'+i).value.trim();if(!v)return;S.resp[i].nome=v;persist();renderResp();buildSelects()}
-function togR(i){S.resp[i].ativo=!S.resp[i].ativo;persist();renderResp();buildSelects()}
-function delR(i){if(confirm('Remover '+S.resp[i].nome+'?')){S.resp.splice(i,1);persist();renderResp();buildSelects()}}
-function addResp(){const v=document.getElementById('new-resp').value.trim();if(!v)return;S.resp.push({nome:v,ativo:true});document.getElementById('new-resp').value='';persist();renderResp();buildSelects()}
+function saveR(i){const v=document.getElementById('re_'+i).value.trim();if(!v)return;S.resp[i].nome=v;persist();salvarConfigs();renderResp();buildSelects()}
+function togR(i){S.resp[i].ativo=!S.resp[i].ativo;persist();salvarConfigs();renderResp();buildSelects()}
+function delR(i){if(confirm('Remover '+S.resp[i].nome+'?')){S.resp.splice(i,1);persist();salvarConfigs();renderResp();buildSelects()}}
+function addResp(){const v=document.getElementById('new-resp').value.trim();if(!v)return;S.resp.push({nome:v,ativo:true});document.getElementById('new-resp').value='';persist();salvarConfigs();renderResp();buildSelects()}
 
 function renderClientes(){
   const c=document.getElementById('clientes-list');c.innerHTML='';
@@ -613,15 +614,15 @@ function renderClientes(){
   });
 }
 function editC(ci){document.getElementById('cn_'+ci).style.display='none';document.getElementById('ce_'+ci).style.display='block';document.getElementById('cb_'+ci).style.display='none';document.getElementById('cs_'+ci).style.display='inline-block';document.getElementById('ce_'+ci).focus()}
-function saveC(ci){const v=document.getElementById('ce_'+ci).value.trim();if(!v)return;S.clientes[ci].nome=v;persist();renderClientes();buildSelects()}
-function togC(ci){S.clientes[ci].ativo=!S.clientes[ci].ativo;persist();renderClientes();buildSelects()}
-function delC(ci){if(confirm('Remover '+S.clientes[ci].nome+'?')){S.clientes.splice(ci,1);persist();renderClientes();buildSelects()}}
-function addCliente(){const v=document.getElementById('new-cliente').value.trim();if(!v)return;S.clientes.push({nome:v,ativo:true,embs:[]});document.getElementById('new-cliente').value='';persist();renderClientes();buildSelects()}
+function saveC(ci){const v=document.getElementById('ce_'+ci).value.trim();if(!v)return;S.clientes[ci].nome=v;persist();salvarConfigs();renderClientes();buildSelects()}
+function togC(ci){S.clientes[ci].ativo=!S.clientes[ci].ativo;persist();salvarConfigs();renderClientes();buildSelects()}
+function delC(ci){if(confirm('Remover '+S.clientes[ci].nome+'?')){S.clientes.splice(ci,1);persist();salvarConfigs();renderClientes();buildSelects()}}
+function addCliente(){const v=document.getElementById('new-cliente').value.trim();if(!v)return;S.clientes.push({nome:v,ativo:true,embs:[]});document.getElementById('new-cliente').value='';persist();salvarConfigs();renderClientes();buildSelects()}
 function editE(ci,ei){document.getElementById('en_'+ci+'_'+ei).style.display='none';document.getElementById('ee_'+ci+'_'+ei).style.display='block';document.getElementById('eb_'+ci+'_'+ei).style.display='none';document.getElementById('es_'+ci+'_'+ei).style.display='inline-block';document.getElementById('ee_'+ci+'_'+ei).focus()}
-function saveE(ci,ei){const v=document.getElementById('ee_'+ci+'_'+ei).value.trim();if(!v)return;S.clientes[ci].embs[ei].nome=v;persist();renderClientes();buildSelects()}
-function togE(ci,ei){S.clientes[ci].embs[ei].ativo=!S.clientes[ci].embs[ei].ativo;persist();renderClientes();buildSelects()}
-function delE(ci,ei){if(confirm('Remover embarcação?')){S.clientes[ci].embs.splice(ei,1);persist();renderClientes();buildSelects()}}
-function addE(ci){const v=document.getElementById('ne_'+ci).value.trim();if(!v)return;S.clientes[ci].embs.push({nome:v,ativo:true});persist();renderClientes();buildSelects()}
+function saveE(ci,ei){const v=document.getElementById('ee_'+ci+'_'+ei).value.trim();if(!v)return;S.clientes[ci].embs[ei].nome=v;persist();salvarConfigs();renderClientes();buildSelects()}
+function togE(ci,ei){S.clientes[ci].embs[ei].ativo=!S.clientes[ci].embs[ei].ativo;persist();salvarConfigs();renderClientes();buildSelects()}
+function delE(ci,ei){if(confirm('Remover embarcação?')){S.clientes[ci].embs.splice(ei,1);persist();salvarConfigs();renderClientes();buildSelects()}}
+function addE(ci){const v=document.getElementById('ne_'+ci).value.trim();if(!v)return;S.clientes[ci].embs.push({nome:v,ativo:true});persist();salvarConfigs();renderClientes();buildSelects()}
 
 let equipData=[];
 
@@ -876,6 +877,38 @@ function factoryReset(){
   matsData=[];
   equipData=[];
   alert('Histórico local de '+label+' apagado neste dispositivo.');
+}
+
+function carregarConfigs(onDone){
+  if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){buildSelects();if(onDone)onDone();return;}
+  var st=document.getElementById('cfg-sync-status');
+  if(st)st.textContent='Sincronizando configurações...';
+  window._cbCfg=function(res){
+    if(st)st.textContent='';
+    if(res.status==='ok'&&res.configs){
+      var c=res.configs;
+      if(c.resp&&c.resp.length)         S.resp=c.resp;
+      if(c.clientes&&c.clientes.length) S.clientes=c.clientes;
+      if(c.unidades&&c.unidades.length) S.unidades=c.unidades;
+      persist();
+    }
+    buildSelects();
+    if(onDone)onDone();
+  };
+  var s=document.createElement('script');
+  s.src=SCRIPT_URL+'?callback=_cbCfg&action=getconfigs';
+  s.onerror=function(){s.remove();buildSelects();if(onDone)onDone();};
+  document.head.appendChild(s);
+}
+
+function salvarConfigs(){
+  if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT') return;
+  var payload={resp:S.resp,clientes:S.clientes,unidades:S.unidades};
+  var s=document.createElement('script');
+  s.src=SCRIPT_URL+'?callback=_cbSaveCfg&action=saveconfigs&payload='+encodeURIComponent(JSON.stringify(payload));
+  window._cbSaveCfg=function(res){s.remove();};
+  s.onerror=function(){s.remove();};
+  document.head.appendChild(s);
 }
 
 function init(){

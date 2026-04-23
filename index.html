@@ -321,13 +321,12 @@ body {
 <div id="mats-tab" style="display:none">
   <div class="card">
     <div class="card-title">Materiais entregues — últimos 5 dias</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <select id="mats-filtro-cli" onchange="renderMats()" style="flex:1;font-family:'Inter',sans-serif;font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <div style="margin-bottom:14px">
+      <select id="mats-filtro-cli" onchange="renderMats()" style="width:100%;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
         <option value="">Todos os clientes</option>
       </select>
-      <button onclick="carregarMats()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500">&#8635; Atualizar</button>
     </div>
-    <div id="mats-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Toque em "Atualizar" para carregar.</p></div>
+    <div id="mats-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p></div>
   </div>
 </div>
 
@@ -335,15 +334,14 @@ body {
 <div id="equip-tab" style="display:none">
   <div class="card">
     <div class="card-title">Equipamentos emprestados</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <select id="equip-filtro" onchange="renderEquip()" style="flex:1;font-family:'Inter',sans-serif;font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <div style="margin-bottom:14px">
+      <select id="equip-filtro" onchange="renderEquip()" style="width:100%;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
         <option value="aberto">Em aberto</option>
         <option value="devolvido">Devolvidos</option>
         <option value="todos">Todos</option>
       </select>
-      <button onclick="carregarEquip()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500">&#8635; Atualizar</button>
     </div>
-    <div id="equip-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Toque em "Atualizar" para carregar.</p></div>
+    <div id="equip-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p></div>
   </div>
 </div>
 
@@ -449,8 +447,8 @@ function showTab(t){
   document.getElementById('config-tab').style.display=t==='config'?'block':'none';
   document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',(t==='form'&&i===0)||(t==='mats'&&i===1)||(t==='equip'&&i===2)||(t==='config'&&i===3));});
   if(t==='config')renderConfig();
-  if(t==='equip')carregarEquip();
-  if(t==='mats')carregarMats();
+  if(t==='equip'){if(equipData.length)renderEquip();else carregarEquip();}
+  if(t==='mats'){if(matsData.length)renderMats();else carregarMats();}
 }
 
 function buildSelects(){
@@ -626,9 +624,9 @@ function addE(ci){const v=document.getElementById('ne_'+ci).value.trim();if(!v)r
 
 let equipData=[];
 
-function carregarEquip(){
+function carregarEquip(silent){
   var lista=document.getElementById('equip-lista');
-  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
+  if(!silent)lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
   if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Configure a URL do script primeiro.</p>';return;}
   window._cbEquip=function(res){equipData=res.equipamentos||[];renderEquip();};
   var s=document.createElement('script');
@@ -758,9 +756,9 @@ function resetContador(){
 
 let matsData=[];
 
-function carregarMats(){
+function carregarMats(silent){
   var lista=document.getElementById('mats-lista');
-  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
+  if(!silent)lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
   if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Configure a URL do script primeiro.</p>';return;}
   window._cbMats=function(res){
     matsData=res.materiais||[];
@@ -934,6 +932,8 @@ function init(){
     _si.src=SCRIPT_URL+'?callback=cb&action=nextseq';
     document.head.appendChild(_si);
   }
+  setTimeout(function(){carregarMats();},600);
+  setTimeout(function(){carregarEquip();},1200);
 }
 init();
 </script>

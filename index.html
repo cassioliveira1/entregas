@@ -838,8 +838,11 @@ function editarLancamento(item, tipo){
   document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
+    var newDesc=document.getElementById('ed-desc').value.trim();
+    if(!newDesc){alert('Descrição obrigatória.');return;}
     var payload={seq:item.seq,
-      desc:document.getElementById('ed-desc').value.trim(),
+      originalDesc:item.desc,
+      desc:newDesc,
       solicitante:document.getElementById('ed-sol').value.trim(),
       cliente:document.getElementById('ed-cli').value.trim(),
       embarcacao:document.getElementById('ed-emb').value.trim(),
@@ -848,11 +851,19 @@ function editarLancamento(item, tipo){
       etapa:document.getElementById('ed-etapa').value.trim(),
       obs:document.getElementById('ed-obs').value.trim(),
       tipo:tipo};
-    if(!payload.desc){alert('Descrição obrigatória.');return;}
     document.body.removeChild(overlay);
     var sd=document.createElement('script');
     sd.src=SCRIPT_URL+'?callback=_cbEdit&action=editar&payload='+encodeURIComponent(JSON.stringify(payload));
-    window._cbEdit=function(res){sd.remove();if(res.status==='ok'){alert('Lançamento atualizado!');if(tipo==='equipamento')carregarEquip();else carregarMats();}else{alert('Erro ao salvar. Tente novamente.');}};
+    window._cbEdit=function(res){sd.remove();
+      if(res.status==='ok'){
+        alert('Lançamento atualizado!');
+        if(tipo==='equipamento')carregarEquip();else carregarMats();
+      } else if(res.status==='nao_encontrado'){
+        alert('Lançamento não encontrado na planilha. Verifique os logs do Apps Script.');
+      } else {
+        alert('Erro ao salvar. Tente novamente.');
+      }
+    };
     sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
     document.head.appendChild(sd);
   };

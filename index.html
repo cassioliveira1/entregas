@@ -321,10 +321,11 @@ body {
 <div id="mats-tab" style="display:none">
   <div class="card">
     <div class="card-title">Materiais entregues — últimos 5 dias</div>
-        <div style="margin-bottom:14px">
-      <select id="mats-filtro-cli" onchange="renderMats()" style="width:100%;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+      <select id="mats-filtro-cli" onchange="renderMats()" style="flex:1;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
         <option value="">Todos os clientes</option>
       </select>
+      <button onclick="carregarMats()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:500">&#8635; Atualizar</button>
     </div>
     <div id="mats-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p></div>
   </div>
@@ -334,12 +335,13 @@ body {
 <div id="equip-tab" style="display:none">
   <div class="card">
     <div class="card-title">Equipamentos emprestados</div>
-        <div style="margin-bottom:14px">
-      <select id="equip-filtro" onchange="renderEquip()" style="width:100%;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+      <select id="equip-filtro" onchange="renderEquip()" style="flex:1;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
         <option value="aberto">Em aberto</option>
         <option value="devolvido">Devolvidos</option>
         <option value="todos">Todos</option>
       </select>
+      <button onclick="carregarEquip()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:500">&#8635; Atualizar</button>
     </div>
     <div id="equip-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p></div>
   </div>

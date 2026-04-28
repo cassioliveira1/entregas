@@ -439,8 +439,8 @@ let S = {
   photos:[],items:[],ic:0
 };
 
-function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,ano:S.ano,resp:S.resp,clientes:S.clientes,casasDecimais:S.casasDecimais,unidades:S.unidades}))}catch(e){} }
-function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.resp)S.resp=d.resp;if(d.clientes)S.clientes=d.clientes;if(d.seq)S.seq=d.seq;if(d.ano)S.ano=d.ano;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais;if(d.unidades)S.unidades=d.unidades}catch(e){} }
+function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,ano:S.ano,casasDecimais:S.casasDecimais}))}catch(e){} }
+function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.seq)S.seq=d.seq;if(d.ano)S.ano=d.ano;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais;}catch(e){} }
 
 function showTab(t){
   document.getElementById('form-tab').style.display=t==='form'?'block':'none';
@@ -898,10 +898,11 @@ function carregarConfigs(onDone){
     if(st)st.textContent='';
     if(res.status==='ok'&&res.configs){
       var c=res.configs;
-      if(c.resp&&c.resp.length)         S.resp=c.resp;
-      if(c.clientes&&c.clientes.length) S.clientes=c.clientes;
-      if(c.unidades&&c.unidades.length) S.unidades=c.unidades;
-      persist();
+      // Server is always source of truth — overwrite regardless of length
+      if(c.resp    !== undefined) S.resp=c.resp;
+      if(c.clientes!== undefined) S.clientes=c.clientes;
+      if(c.unidades!== undefined) S.unidades=c.unidades;
+      persist(); // save server data locally for offline fallback
     }
     buildSelects();
     if(onDone)onDone();
@@ -926,27 +927,33 @@ function init(){
   hydrate();
   var _yy=String(S.ano||new Date().getFullYear()).slice(-2);
   document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0')+'/'+_yy;
-  const today=new Date().toISOString().split('T')[0];
+  var today=new Date().toISOString().split('T')[0];
   document.getElementById('data').value=today;
-  const now=new Date();
+  var now=new Date();
   document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  buildSelects();addItem();
-  if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
-    window.cb=function(res){
-      if(res&&res.seq){
-        S.seq=res.seq;
-        if(res.ano)S.ano=res.ano;
-        persist();
-        var _yy2=String(S.ano||new Date().getFullYear()).slice(-2);
-        document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0')+'/'+_yy2;
-      }
-    };
-    var _si=document.createElement('script');
-    _si.src=SCRIPT_URL+'?callback=cb&action=nextseq';
-    document.head.appendChild(_si);
-  }
-  setTimeout(function(){carregarMats();},600);
-  setTimeout(function(){carregarEquip();},1200);
+  addItem();
+
+  // Load configs from server first — server is always source of truth
+  // buildSelects() is called inside carregarConfigs callback after data arrives
+  carregarConfigs(function(){
+    // After configs loaded: fetch nextseq and preload tabs
+    if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
+      window.cb=function(res){
+        if(res&&res.seq){
+          S.seq=res.seq;
+          if(res.ano)S.ano=res.ano;
+          persist();
+          var _yy2=String(S.ano||new Date().getFullYear()).slice(-2);
+          document.getElementById('seq-display').textContent=String(S.seq).padStart(4,'0')+'/'+_yy2;
+        }
+      };
+      var _si=document.createElement('script');
+      _si.src=SCRIPT_URL+'?callback=cb&action=nextseq';
+      document.head.appendChild(_si);
+      setTimeout(function(){carregarMats();},600);
+      setTimeout(function(){carregarEquip();},1200);
+    }
+  });
 }
 init();
 </script>

@@ -522,6 +522,10 @@ function submitForm(){
     _s.onload=function(){
       _s.remove();
       S.photos.forEach(function(foto){
+        // Safely extract base64 data regardless of data URL format
+        var rawData = foto.data || '';
+        var fotoBase64 = rawData.indexOf(',') !== -1 ? rawData.split(',')[1] : rawData;
+        if(!fotoBase64) return; // skip if no data
         fetch(SCRIPT_URL,{
           method:'POST',
           mode:'no-cors',
@@ -530,11 +534,11 @@ function submitForm(){
             action:'foto',
             seq:num,
             data:data,
-            fotoData:foto.data.split(',')[1],
-            fotoType:foto.type,
-            fotoName:foto.name||'foto.jpg'
+            fotoData:fotoBase64,
+            fotoType:foto.type||'image/jpeg',
+            fotoName:foto.name||('foto_'+Date.now()+'.jpg')
           })
-        }).catch(function(e){console.warn(e);});
+        }).catch(function(e){console.warn('foto upload error:',e);});
       });
     };
     _s.onerror=function(){_s.remove();};
@@ -669,7 +673,7 @@ function renderEquip(){
       var btn=document.createElement('button');
       btn.textContent='Registrar devolucao';
       btn.style.cssText='margin-top:10px;width:100%;padding:8px;border:1.5px solid var(--accent);border-radius:10px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:13px;font-weight:500';
-      (function(ii){btn.onclick=function(){abrirDevolucao(ii);};})(i);
+      (function(item){btn.onclick=function(){abrirDevolucaoItem(item);};})(e);
       div.appendChild(btn);
     }
     var eActDiv=document.createElement('div');
@@ -677,20 +681,29 @@ function renderEquip(){
     var eEditBtn=document.createElement('button');
     eEditBtn.textContent='Editar';
     eEditBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
-    (function(ii){eEditBtn.onclick=function(){editarLancamento(equipData[ii],'equipamento');};})(i);
+    (function(item){eEditBtn.onclick=function(){editarLancamento(item,'equipamento');};})(e);
     var eDelBtn=document.createElement('button');
     eDelBtn.textContent='Apagar';
     eDelBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
-    (function(ii){eDelBtn.onclick=function(){apagarLancamento(equipData[ii]);};})(i);
+    (function(item){eDelBtn.onclick=function(){apagarLancamento(item);};})(e);
     eActDiv.appendChild(eEditBtn);eActDiv.appendChild(eDelBtn);
     div.appendChild(eActDiv);
     lista.appendChild(div);
   });
 }
 
+function abrirDevolucaoItem(e){
+  if(!e) return;
+  _abrirDevolucaoModal(e);
+}
+
 function abrirDevolucao(idx){
   var e=equipData[idx];
   if(!e) return;
+  _abrirDevolucaoModal(e);
+}
+
+function _abrirDevolucaoModal(e){
 
   // Build modal overlay
   var overlay=document.createElement('div');
@@ -800,11 +813,11 @@ function renderMats(){
         var editBtn=document.createElement('button');
     editBtn.textContent='Editar';
     editBtn.style.cssText='margin-top:10px;margin-right:6px;padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
-    (function(mm){editBtn.onclick=function(){editarLancamento(mm,'material');};})(m);
+    (function(item){editBtn.onclick=function(){editarLancamento(item,'material');};})(m);
     var delBtn=document.createElement('button');
     delBtn.textContent='Apagar';
     delBtn.style.cssText='margin-top:10px;padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
-    (function(mm){delBtn.onclick=function(){apagarLancamento(mm);};})(m);
+    (function(item){delBtn.onclick=function(){apagarLancamento(item);};})(m);
     var actDiv=document.createElement('div');
     actDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
     actDiv.appendChild(editBtn);actDiv.appendChild(delBtn);
@@ -905,6 +918,8 @@ function carregarConfigs(onDone){
       persist(); // save server data locally for offline fallback
     }
     buildSelects();
+    // Add first item row only after units are loaded from server
+    if(!document.getElementById('items').children.length) addItem();
     if(onDone)onDone();
   };
   var s=document.createElement('script');
@@ -931,10 +946,8 @@ function init(){
   document.getElementById('data').value=today;
   var now=new Date();
   document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  addItem();
-
   // Load configs from server first — server is always source of truth
-  // buildSelects() is called inside carregarConfigs callback after data arrives
+  // addItem() and buildSelects() called inside callback after configs arrive
   carregarConfigs(function(){
     // After configs loaded: fetch nextseq and preload tabs
     if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){

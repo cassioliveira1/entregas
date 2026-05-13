@@ -321,13 +321,16 @@ body {
 <div id="mats-tab" style="display:none">
   <div class="card">
     <div class="card-title">Materiais entregues — últimos 5 dias</div>
-        <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
       <select id="mats-filtro-cli" onchange="renderMats()" style="flex:1;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
         <option value="">Todos os clientes</option>
       </select>
       <button onclick="carregarMats()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:500">&#8635; Atualizar</button>
     </div>
-    <div id="mats-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p></div>
+    <div style="margin-bottom:14px">
+      <input type="text" id="mats-busca" oninput="renderMats()" placeholder="Buscar por material, cliente, etapa..." style="width:100%;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+    </div>
+    <div id="mats-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Toque em "Atualizar" para carregar.</p></div>
   </div>
 </div>
 
@@ -335,7 +338,7 @@ body {
 <div id="equip-tab" style="display:none">
   <div class="card">
     <div class="card-title">Equipamentos emprestados</div>
-        <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
       <select id="equip-filtro" onchange="renderEquip()" style="flex:1;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
         <option value="aberto">Em aberto</option>
         <option value="devolvido">Devolvidos</option>
@@ -343,13 +346,16 @@ body {
       </select>
       <button onclick="carregarEquip()" style="padding:8px 14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-l);color:var(--accent);cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:500">&#8635; Atualizar</button>
     </div>
-    <div id="equip-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p></div>
+    <div style="margin-bottom:14px">
+      <input type="text" id="equip-busca" oninput="renderEquip()" placeholder="Buscar por equipamento, cliente, etapa..." style="width:100%;font-family:var(--font-sans);font-size:14px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+    </div>
+    <div id="equip-lista"><p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Toque em "Atualizar" para carregar.</p></div>
   </div>
 </div>
 
 <!-- CONFIGURAÇÕES -->
 <div id="config-tab" style="display:none">
-  <div style="padding:4px 0 8px"><p style="font-size:12px;color:var(--text3)" id="cfg-sync-status"></p></div>
+  <div style="padding:2px 0 6px"><p style="font-size:12px;color:var(--text3)" id="cfg-sync-status"></p></div>
   <div class="cfg-card">
     <div class="cfg-title">Responsáveis</div>
     <div id="resp-list"></div>
@@ -439,8 +445,8 @@ let S = {
   photos:[],items:[],ic:0
 };
 
-function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,ano:S.ano,casasDecimais:S.casasDecimais}))}catch(e){} }
-function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.seq)S.seq=d.seq;if(d.ano)S.ano=d.ano;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais;}catch(e){} }
+function persist(){ try{localStorage.setItem('am_v2',JSON.stringify({seq:S.seq,ano:S.ano,resp:S.resp,clientes:S.clientes,casasDecimais:S.casasDecimais,unidades:S.unidades}))}catch(e){} }
+function hydrate(){ try{const d=JSON.parse(localStorage.getItem('am_v2')||'{}');if(d.resp)S.resp=d.resp;if(d.clientes)S.clientes=d.clientes;if(d.seq)S.seq=d.seq;if(d.ano)S.ano=d.ano;if(d.casasDecimais!==undefined)S.casasDecimais=d.casasDecimais;if(d.unidades)S.unidades=d.unidades}catch(e){} }
 
 function showTab(t){
   document.getElementById('form-tab').style.display=t==='form'?'block':'none';
@@ -449,8 +455,8 @@ function showTab(t){
   document.getElementById('config-tab').style.display=t==='config'?'block':'none';
   document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',(t==='form'&&i===0)||(t==='mats'&&i===1)||(t==='equip'&&i===2)||(t==='config'&&i===3));});
   if(t==='config')renderConfig();
-  if(t==='equip'){if(equipData.length)renderEquip();else carregarEquip();}
-  if(t==='mats'){if(matsData.length)renderMats();else carregarMats();}
+  if(t==='equip')carregarEquip();
+  if(t==='mats')carregarMats();
 }
 
 function buildSelects(){
@@ -519,29 +525,31 @@ function submitForm(){
   if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
     var _s=document.createElement('script');
     _s.src=SCRIPT_URL+'?callback=cb&payload='+encodeURIComponent(JSON.stringify(payload));
-    _s.onload=function(){
-      _s.remove();
-      S.photos.forEach(function(foto){
-        // Safely extract base64 data regardless of data URL format
-        var rawData = foto.data || '';
-        var fotoBase64 = rawData.indexOf(',') !== -1 ? rawData.split(',')[1] : rawData;
-        if(!fotoBase64) return; // skip if no data
-        fetch(SCRIPT_URL,{
-          method:'POST',
-          mode:'no-cors',
-          headers:{'Content-Type':'text/plain'},
-          body:JSON.stringify({
-            action:'foto',
-            seq:num,
-            data:data,
-            fotoData:fotoBase64,
-            fotoType:foto.type||'image/jpeg',
-            fotoName:foto.name||('foto_'+Date.now()+'.jpg')
-          })
-        }).catch(function(e){console.warn('foto upload error:',e);});
-      });
-    };
+    _s.onload=function(){_s.remove();};
     _s.onerror=function(){_s.remove();};
+    // Send fotos independently after a delay — don't depend on onload
+    if(S.photos.length>0){
+      S.photos.forEach(function(foto,fi){
+        setTimeout(function(){
+          var rawData=foto.data||'';
+          var fotoBase64=rawData.indexOf(',')!==-1?rawData.split(',')[1]:rawData;
+          if(!fotoBase64){console.warn('foto sem dados',fi);return;}
+          fetch(SCRIPT_URL,{
+            method:'POST',
+            mode:'no-cors',
+            headers:{'Content-Type':'text/plain'},
+            body:JSON.stringify({
+              action:'foto',
+              seq:num,
+              data:data,
+              fotoData:fotoBase64,
+              fotoType:foto.type||'image/jpeg',
+              fotoName:foto.name||('foto_'+Date.now()+'_'+fi+'.jpg')
+            })
+          }).catch(function(err){console.warn('foto erro:',err);});
+        }, 2000 + fi*1500); // stagger: 2s, 3.5s, 5s...
+      });
+    }
     document.head.appendChild(_s);
   }
 
@@ -580,9 +588,9 @@ function renderUnidades(){
   });
 }
 function editU(i){document.getElementById('un_n_'+i).style.display='none';document.getElementById('un_e_'+i).style.display='block';document.getElementById('un_b_'+i).style.display='none';document.getElementById('un_s_'+i).style.display='inline-block';document.getElementById('un_e_'+i).focus();}
-function saveU(i){var v=document.getElementById('un_e_'+i).value.trim();if(!v)return;S.unidades[i].nome=v;persist();salvarConfigs();renderUnidades();}
-function togU(i){S.unidades[i].ativo=!S.unidades[i].ativo;persist();salvarConfigs();renderUnidades();}
-function delU(i){if(confirm('Remover unidade '+S.unidades[i].nome+'?')){S.unidades.splice(i,1);persist();salvarConfigs();renderUnidades();}}
+function saveU(i){var v=document.getElementById('un_e_'+i).value.trim();if(!v)return;S.unidades[i].nome=v;persist();renderUnidades();}
+function togU(i){S.unidades[i].ativo=!S.unidades[i].ativo;persist();renderUnidades();}
+function delU(i){if(confirm('Remover unidade '+S.unidades[i].nome+'?')){S.unidades.splice(i,1);persist();renderUnidades();}}
 function addUnidade(){var v=document.getElementById('new-unidade').value.trim();if(!v)return;S.unidades.push({nome:v,ativo:true});document.getElementById('new-unidade').value='';persist();salvarConfigs();renderUnidades();}
 
 function renderConfig(){
@@ -593,6 +601,8 @@ function renderConfig(){
   if(cfgSeq) cfgSeq.textContent=String(S.seq).padStart(4,'0')+'/'+String(S.ano||new Date().getFullYear()).slice(-2);
   var cfgDec=document.getElementById('cfg-decimais');
   if(cfgDec) cfgDec.value=String(S.casasDecimais!==undefined?S.casasDecimais:2);
+  var st=document.getElementById('cfg-sync-status');
+  if(st&&st.textContent==='')st.textContent='';
 }
 function renderResp(){
   const c=document.getElementById('resp-list');c.innerHTML='';
@@ -630,9 +640,9 @@ function addE(ci){const v=document.getElementById('ne_'+ci).value.trim();if(!v)r
 
 let equipData=[];
 
-function carregarEquip(silent){
+function carregarEquip(){
   var lista=document.getElementById('equip-lista');
-  if(!silent)lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
+  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
   if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Configure a URL do script primeiro.</p>';return;}
   window._cbEquip=function(res){equipData=res.equipamentos||[];renderEquip();};
   var s=document.createElement('script');
@@ -643,10 +653,14 @@ function carregarEquip(silent){
 
 function renderEquip(){
   var filtro=document.getElementById('equip-filtro').value;
+  var busca=(document.getElementById('equip-busca')||{value:''}).value.toLowerCase().trim();
   var lista=document.getElementById('equip-lista');
   var items=equipData;
-  if(filtro==='aberto') items=equipData.filter(function(e){return e.status==='em aberto';});
-  else if(filtro==='devolvido') items=equipData.filter(function(e){return e.status==='devolvido';});
+  if(filtro==='aberto')    items=items.filter(function(e){return e.status==='em aberto';});
+  else if(filtro==='devolvido') items=items.filter(function(e){return e.status==='devolvido';});
+  if(busca) items=items.filter(function(e){
+    return (e.desc+' '+e.cliente+' '+e.embarcacao+' '+e.etapa+' '+e.solicitante+' '+e.responsavel+' '+e.seq).toLowerCase().indexOf(busca)!==-1;
+  });
   if(!items.length){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Nenhum equipamento encontrado.</p>';return;}
   lista.innerHTML='';
   items.forEach(function(e,i){
@@ -692,17 +706,8 @@ function renderEquip(){
   });
 }
 
-function abrirDevolucaoItem(e){
-  if(!e) return;
-  _abrirDevolucaoModal(e);
-}
-
-function abrirDevolucao(idx){
-  var e=equipData[idx];
-  if(!e) return;
-  _abrirDevolucaoModal(e);
-}
-
+function abrirDevolucaoItem(e){if(!e)return;_abrirDevolucaoModal(e);}
+function abrirDevolucao(idx){var e=equipData[idx];if(!e)return;_abrirDevolucaoModal(e);}
 function _abrirDevolucaoModal(e){
 
   // Build modal overlay
@@ -771,9 +776,9 @@ function resetContador(){
 
 let matsData=[];
 
-function carregarMats(silent){
+function carregarMats(){
   var lista=document.getElementById('mats-lista');
-  if(!silent)lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
+  lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Carregando...</p>';
   if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Configure a URL do script primeiro.</p>';return;}
   window._cbMats=function(res){
     matsData=res.materiais||[];
@@ -794,8 +799,13 @@ function carregarMats(silent){
 
 function renderMats(){
   var filtro=document.getElementById('mats-filtro-cli').value;
+  var busca=(document.getElementById('mats-busca')||{value:''}).value.toLowerCase().trim();
   var lista=document.getElementById('mats-lista');
-  var items=filtro?matsData.filter(function(m){return m.cliente===filtro;}):matsData;
+  var items=matsData;
+  if(filtro) items=items.filter(function(m){return m.cliente===filtro;});
+  if(busca)  items=items.filter(function(m){
+    return (m.desc+' '+m.cliente+' '+m.embarcacao+' '+m.etapa+' '+m.solicitante+' '+m.responsavel+' '+m.seq).toLowerCase().indexOf(busca)!==-1;
+  });
   if(!items.length){lista.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Nenhum material encontrado nos últimos 5 dias.</p>';return;}
   lista.innerHTML='';
   items.forEach(function(m){
@@ -813,16 +823,33 @@ function renderMats(){
         var editBtn=document.createElement('button');
     editBtn.textContent='Editar';
     editBtn.style.cssText='margin-top:10px;margin-right:6px;padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
-    (function(item){editBtn.onclick=function(){editarLancamento(item,'material');};})(m);
+    (function(mm){editBtn.onclick=function(){editarLancamento(mm,'material');};})(m);
     var delBtn=document.createElement('button');
     delBtn.textContent='Apagar';
     delBtn.style.cssText='margin-top:10px;padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
-    (function(item){delBtn.onclick=function(){apagarLancamento(item);};})(m);
+    (function(mm){delBtn.onclick=function(){apagarLancamento(mm);};})(m);
     var actDiv=document.createElement('div');
     actDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
     actDiv.appendChild(editBtn);actDiv.appendChild(delBtn);
     div.appendChild(actDiv);
     lista.appendChild(div);
+  });
+}
+
+function previewEditFotos(){
+  var input=document.getElementById('ed-fotos');
+  var grid=document.getElementById('ed-fotos-grid');
+  if(!input||!grid)return;
+  grid.innerHTML='';
+  Array.from(input.files).forEach(function(file){
+    var r=new FileReader();
+    r.onload=function(ev){
+      var d=document.createElement('div');
+      d.style.cssText='aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg)';
+      d.innerHTML='<img src="'+ev.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+      grid.appendChild(d);
+    };
+    r.readAsDataURL(file);
   });
 }
 
@@ -844,20 +871,63 @@ function editarLancamento(item, tipo){
     '</div>'+
     '<div class="field"><label>Etapa</label><input id="ed-etapa" type="text" value="'+(item.etapa||'')+'" style="'+fs+'"></div>'+
     '<div class="field"><label>Observações</label><textarea id="ed-obs" style="'+fs+';min-height:60px;resize:vertical">'+(item.obs||'')+'</textarea></div>'+
+    '<div class="field"><label>Adicionar fotos</label>'+
+    '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1.5px dashed var(--border2);border-radius:var(--radius);cursor:pointer">'+
+    '<span style="font-size:18px">📷</span>'+
+    '<span style="font-size:13px;color:var(--text2)">Toque para adicionar fotos</span>'+
+    '<input type="file" id="ed-fotos" accept="image/*" multiple style="display:none" onchange="previewEditFotos()">'+
+    '</label>'+
+    '<div id="ed-fotos-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px"></div>'+
+    '</div>'+
+    '<div class="field"><label>Adicionar foto ao lançamento</label>'+
+      '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1.5px dashed var(--border2);border-radius:10px;cursor:pointer" for="ed-foto-input">'+
+        '<span style="font-size:20px">📷</span>'+
+        '<span style="font-size:13px;color:var(--text2)" id="ed-foto-label">Toque para adicionar foto</span>'+
+      '</label>'+
+      '<input type="file" id="ed-foto-input" accept="image/*" multiple style="display:none">'+
+    '</div>'+
     '<div style="display:flex;gap:8px;margin-top:12px">'+
       '<button id="ed-cancel" style="flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:10px;background:none;cursor:pointer;font-size:14px;color:var(--text2)">Cancelar</button>'+
       '<button id="ed-save" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;font-size:14px;font-weight:500">Salvar</button>'+
     '</div>'
   );
   overlay.appendChild(modal);document.body.appendChild(overlay);
+  var edPhotos=[];
+  function renderEdPhotos(){
+    var g=document.getElementById('ed-photo-grid');if(!g)return;g.innerHTML='';
+    edPhotos.forEach(function(p,i){
+      var d=document.createElement('div');
+      d.style.cssText='position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg)';
+      d.innerHTML='<img src="'+p.data+'" style="width:100%;height:100%;object-fit:cover"><button onclick="edPhotos.splice('+i+',1);renderEdPhotos();" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>';
+      g.appendChild(d);
+    });
+  }
+  var edPhotoInput=document.getElementById('ed-photo-input');
+  if(edPhotoInput) edPhotoInput.onchange=function(ev){
+    Array.from(ev.target.files).forEach(function(f){
+      var r=new FileReader();r.onload=function(e){edPhotos.push({data:e.target.result,type:f.type,name:f.name});renderEdPhotos();};r.readAsDataURL(f);
+    });ev.target.value='';
+  };
   document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};
+  // Foto input in editar modal
+  var edFotoInput=document.getElementById('ed-foto-input');
+  var edFotos=[];
+  if(edFotoInput){
+    edFotoInput.onchange=function(ev){
+      Array.from(ev.target.files).forEach(function(f){
+        var r=new FileReader();
+        r.onload=function(e){edFotos.push({data:e.target.result,type:f.type,name:f.name});
+          document.getElementById('ed-foto-label').textContent=edFotos.length+' foto(s) selecionada(s)';
+        };
+        r.readAsDataURL(f);
+      });
+      ev.target.value='';
+    };
+  }
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
-    var newDesc=document.getElementById('ed-desc').value.trim();
-    if(!newDesc){alert('Descrição obrigatória.');return;}
     var payload={seq:item.seq,
-      originalDesc:item.desc,
-      desc:newDesc,
+      desc:document.getElementById('ed-desc').value.trim(),
       solicitante:document.getElementById('ed-sol').value.trim(),
       cliente:document.getElementById('ed-cli').value.trim(),
       embarcacao:document.getElementById('ed-emb').value.trim(),
@@ -866,15 +936,30 @@ function editarLancamento(item, tipo){
       etapa:document.getElementById('ed-etapa').value.trim(),
       obs:document.getElementById('ed-obs').value.trim(),
       tipo:tipo};
+    if(!payload.desc){alert('Descrição obrigatória.');return;}
     document.body.removeChild(overlay);
     var sd=document.createElement('script');
     sd.src=SCRIPT_URL+'?callback=_cbEdit&action=editar&payload='+encodeURIComponent(JSON.stringify(payload));
-    window._cbEdit=function(res){sd.remove();
-      if(res.status==='ok'){
-        alert('Lançamento atualizado!');
+    window._cbEdit=function(res){
+      sd.remove();
+      if(res.status==='ok'||res.status==='nao_encontrado'){
+        if(typeof edFotos!=='undefined'&&edFotos.length>0){
+          edFotos.forEach(function(foto,fi){
+            setTimeout(function(){
+              var rawData=foto.data||'';
+              var fb=rawData.indexOf(',')!==-1?rawData.split(',')[1]:rawData;
+              if(!fb) return;
+              fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
+                body:JSON.stringify({action:'foto',seq:payload.seq,
+                  data:new Date().toISOString().split('T')[0],
+                  fotoData:fb,fotoType:foto.type||'image/jpeg',
+                  fotoName:foto.name||('ed_foto_'+fi+'.jpg')})
+              }).catch(function(e){console.warn(e);});
+            },1000+fi*1500);
+          });
+        }
+        alert(res.status==='ok'?'Lançamento atualizado!':'Lançamento não encontrado na planilha.');
         if(tipo==='equipamento')carregarEquip();else carregarMats();
-      } else if(res.status==='nao_encontrado'){
-        alert('Lançamento não encontrado na planilha. Verifique os logs do Apps Script.');
       } else {
         alert('Erro ao salvar. Tente novamente.');
       }
@@ -904,27 +989,25 @@ function factoryReset(){
 }
 
 function carregarConfigs(onDone){
-  if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){buildSelects();if(onDone)onDone();return;}
   var st=document.getElementById('cfg-sync-status');
-  if(st)st.textContent='Sincronizando configurações...';
+  if(st)st.textContent='Sincronizando...';
+  if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){buildSelects();if(onDone)onDone();return;}
   window._cbCfg=function(res){
     if(st)st.textContent='';
-    if(res.status==='ok'&&res.configs){
+    if(res&&res.status==='ok'&&res.configs){
       var c=res.configs;
-      // Server is always source of truth — overwrite regardless of length
-      if(c.resp    !== undefined) S.resp=c.resp;
-      if(c.clientes!== undefined) S.clientes=c.clientes;
-      if(c.unidades!== undefined) S.unidades=c.unidades;
-      persist(); // save server data locally for offline fallback
+      if(c.resp!==undefined)     S.resp=c.resp;
+      if(c.clientes!==undefined) S.clientes=c.clientes;
+      if(c.unidades!==undefined) S.unidades=c.unidades;
+      persist();
     }
     buildSelects();
-    // Add first item row only after units are loaded from server
     if(!document.getElementById('items').children.length) addItem();
     if(onDone)onDone();
   };
   var s=document.createElement('script');
   s.src=SCRIPT_URL+'?callback=_cbCfg&action=getconfigs';
-  s.onerror=function(){s.remove();buildSelects();if(onDone)onDone();};
+  s.onerror=function(){s.remove();buildSelects();addItem();if(onDone)onDone();};
   document.head.appendChild(s);
 }
 
@@ -946,10 +1029,7 @@ function init(){
   document.getElementById('data').value=today;
   var now=new Date();
   document.getElementById('hora').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  // Load configs from server first — server is always source of truth
-  // addItem() and buildSelects() called inside callback after configs arrive
   carregarConfigs(function(){
-    // After configs loaded: fetch nextseq and preload tabs
     if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
       window.cb=function(res){
         if(res&&res.seq){
@@ -963,8 +1043,8 @@ function init(){
       var _si=document.createElement('script');
       _si.src=SCRIPT_URL+'?callback=cb&action=nextseq';
       document.head.appendChild(_si);
-      setTimeout(function(){carregarMats();},600);
-      setTimeout(function(){carregarEquip();},1200);
+      setTimeout(function(){carregarMats();},800);
+      setTimeout(function(){carregarEquip();},1500);
     }
   });
 }

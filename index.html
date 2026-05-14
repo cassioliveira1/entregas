@@ -879,13 +879,7 @@ function editarLancamento(item, tipo){
     '</label>'+
     '<div id="ed-fotos-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px"></div>'+
     '</div>'+
-    '<div class="field"><label>Adicionar foto ao lançamento</label>'+
-      '<label style="display:flex;align-items:center;gap:10px;padding:10px;border:1.5px dashed var(--border2);border-radius:10px;cursor:pointer" for="ed-foto-input">'+
-        '<span style="font-size:20px">📷</span>'+
-        '<span style="font-size:13px;color:var(--text2)" id="ed-foto-label">Toque para adicionar foto</span>'+
-      '</label>'+
-      '<input type="file" id="ed-foto-input" accept="image/*" multiple style="display:none">'+
-    '</div>'+
+
     '<div style="display:flex;gap:8px;margin-top:12px">'+
       '<button id="ed-cancel" style="flex:1;padding:10px;border:1.5px solid var(--border2);border-radius:10px;background:none;cursor:pointer;font-size:14px;color:var(--text2)">Cancelar</button>'+
       '<button id="ed-save" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;font-size:14px;font-weight:500">Salvar</button>'+
@@ -909,21 +903,7 @@ function editarLancamento(item, tipo){
     });ev.target.value='';
   };
   document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};
-  // Foto input in editar modal
-  var edFotoInput=document.getElementById('ed-foto-input');
-  var edFotos=[];
-  if(edFotoInput){
-    edFotoInput.onchange=function(ev){
-      Array.from(ev.target.files).forEach(function(f){
-        var r=new FileReader();
-        r.onload=function(e){edFotos.push({data:e.target.result,type:f.type,name:f.name});
-          document.getElementById('ed-foto-label').textContent=edFotos.length+' foto(s) selecionada(s)';
-        };
-        r.readAsDataURL(f);
-      });
-      ev.target.value='';
-    };
-  }
+
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
     var payload={seq:item.seq,
@@ -943,8 +923,8 @@ function editarLancamento(item, tipo){
     window._cbEdit=function(res){
       sd.remove();
       if(res.status==='ok'||res.status==='nao_encontrado'){
-        if(typeof edFotos!=='undefined'&&edFotos.length>0){
-          edFotos.forEach(function(foto,fi){
+        if(typeof edPhotos!=='undefined'&&edPhotos.length>0){
+          edPhotos.forEach(function(foto,fi){
             setTimeout(function(){
               var rawData=foto.data||'';
               var fb=rawData.indexOf(',')!==-1?rawData.split(',')[1]:rawData;

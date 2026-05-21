@@ -907,6 +907,7 @@ function editarLancamento(item, tipo){
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
     var payload={seq:item.seq,
+      originalDesc:item.desc,
       desc:document.getElementById('ed-desc').value.trim(),
       solicitante:document.getElementById('ed-sol').value.trim(),
       cliente:document.getElementById('ed-cli').value.trim(),

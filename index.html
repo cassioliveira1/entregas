@@ -753,7 +753,19 @@ function _abrirDevolucaoModal(e){
       etapa:e.etapa||'-',solicitante:e.solicitante||'',desc:e.desc,qtd:qtd,un:e.un};
     var sd=document.createElement('script');
     sd.src=SCRIPT_URL+'?callback=_cbDev&action=devolver&payload='+encodeURIComponent(JSON.stringify(payload));
-    window._cbDev=function(res){sd.remove();if(res.status==='ok'){alert('Devolução registrada!');carregarEquip();}else{alert('Erro ao registrar. Tente novamente.');}};
+    window._cbDev=function(res){
+      sd.remove();
+      if(res.status==='ok'){
+        var filtroEl=document.getElementById('equip-filtro');
+        if(filtroEl) filtroEl.value='devolvido';
+        carregarEquip();
+        alert('Devolução registrada! O item foi movido para "Devolvidos".');
+      } else if(res.status==='nao_encontrado'){
+        alert('Lançamento não encontrado. Verifique se já foi devolvido anteriormente.');
+      } else {
+        alert('Erro ao registrar. Tente novamente.');
+      }
+    };
     sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
     document.head.appendChild(sd);
   };
@@ -841,9 +853,16 @@ function previewEditFotos(){
   var grid=document.getElementById('ed-fotos-grid');
   if(!input||!grid)return;
   grid.innerHTML='';
+  // Reset edPhotos and repopulate from current input files
+  if(typeof edPhotos!=='undefined') edPhotos.length=0;
   Array.from(input.files).forEach(function(file){
     var r=new FileReader();
     r.onload=function(ev){
+      // Populate edPhotos for upload
+      if(typeof edPhotos!=='undefined'){
+        edPhotos.push({data:ev.target.result,type:file.type,name:file.name});
+      }
+      // Show preview
       var d=document.createElement('div');
       d.style.cssText='aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg)';
       d.innerHTML='<img src="'+ev.target.result+'" style="width:100%;height:100%;object-fit:cover">';
@@ -899,7 +918,14 @@ function editarLancamento(item, tipo){
   var edPhotoInput=document.getElementById('ed-photo-input');
   if(edPhotoInput) edPhotoInput.onchange=function(ev){
     Array.from(ev.target.files).forEach(function(f){
-      var r=new FileReader();r.onload=function(e){edPhotos.push({data:e.target.result,type:f.type,name:f.name});renderEdPhotos();};r.readAsDataURL(f);
+      var r=new FileReader();
+      r.onload=function(e){
+        edPhotos.push({data:e.target.result,type:f.type,name:f.name});
+        renderEdPhotos();
+        var lbl=document.getElementById('ed-fotos-count');
+        if(lbl) lbl.textContent=edPhotos.length+' foto(s) pronta(s)';
+      };
+      r.readAsDataURL(f);
     });ev.target.value='';
   };
   document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};

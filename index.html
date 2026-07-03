@@ -223,6 +223,11 @@ body {
 .add-emb-row input:focus { outline: none; border-color: var(--accent); }
 .add-emb-btn { padding: 6px 11px; white-space: nowrap; border: 1.5px solid var(--border2); border-radius: 8px; background: none; color: var(--text2); cursor: pointer; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; }
 .add-emb-btn:hover { border-color: var(--accent); color: var(--accent); }
+.lightbox-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem}
+.lightbox-overlay img{max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.foto-thumb-link{display:inline-block;width:52px;height:52px;border-radius:6px;overflow:hidden;cursor:pointer;border:1.5px solid var(--border);margin-right:4px;margin-top:6px;flex-shrink:0}
+.foto-thumb-link img{width:100%;height:100%;object-fit:cover}
 .info-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; font-size: 13px; color: var(--text2); line-height: 1.7; }
 </style>
 </head>
@@ -651,6 +656,20 @@ function carregarEquip(){
   document.head.appendChild(s);
 }
 
+// ── Helpers para o status "Lançado no sistema?" ────────────────────────────
+function badgeLancadoInfo(status){
+  var s=String(status||'Pendente').trim().toLowerCase();
+  if(s==='sim')        return {bg:'#D1FAE5',tx:'#065F46',label:'Lançado: Sim'};
+  if(s==='não'||s==='nao') return {bg:'#FEE2E2',tx:'#991B1B',label:'Lançado: Não'};
+  if(s==='aguardando') return {bg:'#DBEAFE',tx:'#1E40AF',label:'Lançado: Aguardando'};
+  return {bg:'#FEF3C7',tx:'#92400E',label:'Lançado: Pendente'};
+}
+// Só é permitido apagar quando o status NÃO é "Sim" (mesma regra aplicada no servidor)
+function podeApagar(item){
+  var s=String((item&&item.lancado)||'').trim().toLowerCase();
+  return s!=='sim';
+}
+
 function renderEquip(){
   var filtro=document.getElementById('equip-filtro').value;
   var busca=(document.getElementById('equip-busca')||{value:''}).value.toLowerCase().trim();
@@ -670,11 +689,15 @@ function renderEquip(){
     var bgColor=e.status==='em aberto'?'#FEF3C7':'#D1FAE5';
     var txColor=e.status==='em aberto'?'#92400E':'#065F46';
     var statusText=e.status==='em aberto'?'Em aberto':'Devolvido';
+    var lancInfo=badgeLancadoInfo(e.lancado);
     var qtdInfo=aberto>0?('Em aberto: '+aberto+' '+e.un+(e.qtdDevolvido>0?' | Devolvido: '+e.qtdDevolvido+' '+e.un:'')):'Totalmente devolvido';
     div.innerHTML=(
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
         '<span style="font-size:14px;font-weight:500;color:var(--text)">'+e.desc+'</span>'+
-        '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;background:'+bgColor+';color:'+txColor+'">'+statusText+'</span>'+
+        '<span style="display:flex;gap:4px;flex-wrap:wrap">'+
+          '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;background:'+bgColor+';color:'+txColor+'">'+statusText+'</span>'+
+          '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;background:'+lancInfo.bg+';color:'+lancInfo.tx+'">'+lancInfo.label+'</span>'+
+        '</span>'+
       '</div>'+
       '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
         'Data: '+e.data+(e.hora?' às '+e.hora:'')+' | Lançamento nº '+e.seq+'<br>'+
@@ -683,6 +706,7 @@ function renderEquip(){
         '<strong>'+qtdInfo+'</strong>'+(e.dataDev?('<br><span style="color:var(--success,#12B76A)">&#10003; Devolução: '+e.dataDev+(e.horaDev?' às '+e.horaDev:'')+' | Resp. devolução: '+e.respDev+'</span>'):'')+
       '</div>'
     );
+    renderFotoLinksInto(div, e.fotos);
     if(e.status==='em aberto'){
       var btn=document.createElement('button');
       btn.textContent='Registrar devolucao';
@@ -691,16 +715,24 @@ function renderEquip(){
       div.appendChild(btn);
     }
     var eActDiv=document.createElement('div');
-    eActDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
+    eActDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center';
     var eEditBtn=document.createElement('button');
     eEditBtn.textContent='Editar';
     eEditBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
     (function(item){eEditBtn.onclick=function(){editarLancamento(item,'equipamento');};})(e);
-    var eDelBtn=document.createElement('button');
-    eDelBtn.textContent='Apagar';
-    eDelBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
-    (function(item){eDelBtn.onclick=function(){apagarLancamento(item);};})(e);
-    eActDiv.appendChild(eEditBtn);eActDiv.appendChild(eDelBtn);
+    eActDiv.appendChild(eEditBtn);
+    if(podeApagar(e)){
+      var eDelBtn=document.createElement('button');
+      eDelBtn.textContent='Apagar';
+      eDelBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
+      (function(item){eDelBtn.onclick=function(){apagarLancamento(item);};})(e);
+      eActDiv.appendChild(eDelBtn);
+    } else {
+      var lockSpan=document.createElement('span');
+      lockSpan.textContent='🔒 Já lançado no sistema';
+      lockSpan.style.cssText='font-size:11px;color:var(--text3)';
+      eActDiv.appendChild(lockSpan);
+    }
     div.appendChild(eActDiv);
     lista.appendChild(div);
   });
@@ -823,8 +855,12 @@ function renderMats(){
   items.forEach(function(m){
     var div=document.createElement('div');
     div.style.cssText='border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px';
+    var lancInfo=badgeLancadoInfo(m.lancado);
     div.innerHTML=(
-      '<div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:6px">'+m.desc+(m.qtd?' &mdash; '+m.qtd+' '+m.un:'')+'</div>'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
+        '<span style="font-size:14px;font-weight:500;color:var(--text)">'+m.desc+(m.qtd?' &mdash; '+m.qtd+' '+m.un:'')+'</span>'+
+        '<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;background:'+lancInfo.bg+';color:'+lancInfo.tx+'">'+lancInfo.label+'</span>'+
+      '</div>'+
       '<div style="font-size:12px;color:var(--text2);line-height:1.8">'+
         'Data: '+m.data+(m.hora?' às '+m.hora:'')+' | Lançamento nº '+m.seq+'<br>'+
         'Cliente: '+m.cliente+' | Embarcação: '+m.embarcacao+'<br>'+
@@ -832,21 +868,34 @@ function renderMats(){
         'Solicitante: '+(m.solicitante||'—')+' | Responsável: '+m.responsavel+
       '</div>'
     );
-        var editBtn=document.createElement('button');
+    renderFotoLinksInto(div, m.fotos);
+    var editBtn=document.createElement('button');
     editBtn.textContent='Editar';
     editBtn.style.cssText='margin-top:10px;margin-right:6px;padding:6px 12px;border:1.5px solid var(--accent);border-radius:8px;background:var(--accent-l);color:var(--accent);cursor:pointer;font-size:12px;font-weight:500';
     (function(mm){editBtn.onclick=function(){editarLancamento(mm,'material');};})(m);
-    var delBtn=document.createElement('button');
-    delBtn.textContent='Apagar';
-    delBtn.style.cssText='margin-top:10px;padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
-    (function(mm){delBtn.onclick=function(){apagarLancamento(mm);};})(m);
     var actDiv=document.createElement('div');
-    actDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
-    actDiv.appendChild(editBtn);actDiv.appendChild(delBtn);
+    actDiv.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center';
+    actDiv.appendChild(editBtn);
+    if(podeApagar(m)){
+      var delBtn=document.createElement('button');
+      delBtn.textContent='Apagar';
+      delBtn.style.cssText='padding:6px 12px;border:1.5px solid var(--danger);border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:12px;font-weight:500';
+      (function(mm){delBtn.onclick=function(){apagarLancamento(mm);};})(m);
+      actDiv.appendChild(delBtn);
+    } else {
+      var lockSpan=document.createElement('span');
+      lockSpan.textContent='🔒 Já lançado no sistema';
+      lockSpan.style.cssText='font-size:11px;color:var(--text3)';
+      actDiv.appendChild(lockSpan);
+    }
     div.appendChild(actDiv);
     lista.appendChild(div);
   });
 }
+
+var edPhotos=[];
+
+function resetEdPhotos(){ edPhotos=[]; var g=document.getElementById('ed-fotos-grid');if(g)g.innerHTML=''; }
 
 function previewEditFotos(){
   var input=document.getElementById('ed-fotos');
@@ -905,7 +954,8 @@ function editarLancamento(item, tipo){
     '</div>'
   );
   overlay.appendChild(modal);document.body.appendChild(overlay);
-  var edPhotos=[];
+  // Use global edPhotos — reset before each modal
+  edPhotos=[];
   function renderEdPhotos(){
     var g=document.getElementById('ed-photo-grid');if(!g)return;g.innerHTML='';
     edPhotos.forEach(function(p,i){
@@ -929,6 +979,7 @@ function editarLancamento(item, tipo){
     });ev.target.value='';
   };
   document.getElementById('ed-cancel').onclick=function(){document.body.removeChild(overlay);};
+  resetEdPhotos(); // clear any photos from previous modal
 
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
@@ -944,25 +995,31 @@ function editarLancamento(item, tipo){
       obs:document.getElementById('ed-obs').value.trim(),
       tipo:tipo};
     if(!payload.desc){alert('Descrição obrigatória.');return;}
+    // Capture photos NOW before closing modal — after modal closes the DOM elements are gone
+    var fotosParaEnviar = (typeof edPhotos !== 'undefined') ? edPhotos.slice() : [];
+    var seqParaFoto = payload.seq;
     document.body.removeChild(overlay);
+    // Reset global edPhotos for next modal open
+    edPhotos = [];
     var sd=document.createElement('script');
     sd.src=SCRIPT_URL+'?callback=_cbEdit&action=editar&payload='+encodeURIComponent(JSON.stringify(payload));
     window._cbEdit=function(res){
       sd.remove();
       if(res.status==='ok'||res.status==='nao_encontrado'){
-        if(typeof edPhotos!=='undefined'&&edPhotos.length>0){
-          edPhotos.forEach(function(foto,fi){
+        // Send captured photos using local variable (not global edPhotos)
+        if(fotosParaEnviar.length>0){
+          fotosParaEnviar.forEach(function(foto,fi){
             setTimeout(function(){
               var rawData=foto.data||'';
               var fb=rawData.indexOf(',')!==-1?rawData.split(',')[1]:rawData;
-              if(!fb) return;
+              if(!fb){console.warn('foto sem dados',fi);return;}
               fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},
-                body:JSON.stringify({action:'foto',seq:payload.seq,
+                body:JSON.stringify({action:'foto',seq:seqParaFoto,
                   data:new Date().toISOString().split('T')[0],
                   fotoData:fb,fotoType:foto.type||'image/jpeg',
-                  fotoName:foto.name||('ed_foto_'+fi+'.jpg')})
-              }).catch(function(e){console.warn(e);});
-            },1000+fi*1500);
+                  fotoName:foto.name||('ed_foto_'+Date.now()+'_'+fi+'.jpg')})
+              }).catch(function(e){console.warn('foto err:',e);});
+            },1500+fi*1500);
           });
         }
         alert(res.status==='ok'?'Lançamento atualizado!':'Lançamento não encontrado na planilha.');
@@ -976,10 +1033,25 @@ function editarLancamento(item, tipo){
   };
 }
 function apagarLancamento(item){
+  // Só é permitido apagar quando "Lançado no sistema?" não é "Sim" — o
+  // servidor também valida isso, esta é apenas uma checagem local rápida.
+  if(!podeApagar(item)){
+    alert('Este lançamento já foi enviado ao sistema (status "Sim") e não pode ser apagado.');
+    return;
+  }
   if(!confirm('Apagar o lançamento nº '+item.seq+' ('+item.desc+')? Esta ação não pode ser desfeita na planilha.')) return;
   var sd=document.createElement('script');
   sd.src=SCRIPT_URL+'?callback=_cbDel&action=apagar&payload='+encodeURIComponent(JSON.stringify({seq:item.seq,desc:item.desc,cliente:item.cliente,embarcacao:item.embarcacao}));
-  window._cbDel=function(res){sd.remove();if(res.status==='ok'){alert('Lançamento apagado!');carregarMats();carregarEquip();}else{alert('Erro ao apagar. Tente novamente.');}};
+  window._cbDel=function(res){
+    sd.remove();
+    if(res.status==='ok'){
+      alert('Lançamento apagado!');carregarMats();carregarEquip();
+    } else if(res.status==='bloqueado'){
+      alert('Este lançamento já foi enviado ao sistema (status "Sim") e não pode ser apagado.');
+    } else {
+      alert('Erro ao apagar. Tente novamente.');
+    }
+  };
   sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
   document.head.appendChild(sd);
 }
@@ -1028,6 +1100,56 @@ function salvarConfigs(){
   document.head.appendChild(s);
 }
 
+// CORRIGIDO (bug crítico): a versão anterior tinha uma função renderFotoLinks
+// com escaping de aspas quebrado dentro de um atributo onclick, o que
+// causava um ERRO DE SINTAXE JavaScript. Como todo o app está em um único
+// bloco <script>, esse erro de sintaxe impedia o carregamento de TODO o
+// script — o que explica comportamentos inconsistentes/instáveis no app
+// (dependendo de cache do navegador, esse bloco poderia nunca ser executado
+// corretamente). Reescrito abaixo usando DOM (createElement) em vez de HTML
+// concatenado com aspas aninhadas, evitando esse tipo de bug no futuro.
+// Também removida a definição duplicada de openLightbox (havia duas).
+function openLightbox(src){
+  var lb=document.getElementById('lightbox');
+  var img=document.getElementById('lightbox-img');
+  if(!lb||!img) return;
+  img.src=src;
+  lb.style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function closeLightbox(){
+  var lb=document.getElementById('lightbox');
+  if(lb) lb.style.display='none';
+  document.body.style.overflow='';
+}
+
+function renderFotoLinksInto(container, linkStr){
+  // linkStr pode ter vários links separados por quebra de linha
+  if(!container) return;
+  if(!linkStr||!linkStr.trim()) return;
+  var links=linkStr.split('\n').filter(function(l){return l.trim();});
+  if(!links.length) return;
+  var wrap=document.createElement('div');
+  wrap.style.cssText='display:flex;flex-wrap:wrap;margin-top:6px';
+  links.forEach(function(url,i){
+    url=url.trim();
+    // Converte URL de visualização do Google Drive para URL direta de thumbnail
+    var thumbUrl=url;
+    var m=url.match(/\/d\/([^\/]+)\//);
+    if(m) thumbUrl='https://drive.google.com/thumbnail?id='+m[1]+'&sz=w80';
+    var span=document.createElement('span');
+    span.className='foto-thumb-link';
+    span.title='Ver foto '+(i+1);
+    span.onclick=function(){ openLightbox(url); };
+    var img=document.createElement('img');
+    img.src=thumbUrl;
+    img.onerror=function(){ span.style.display='none'; };
+    span.appendChild(img);
+    wrap.appendChild(span);
+  });
+  container.appendChild(wrap);
+}
+
 function init(){
   hydrate();
   var _yy=String(S.ano||new Date().getFullYear()).slice(-2);
@@ -1057,5 +1179,9 @@ function init(){
 }
 init();
 </script>
+<div id="lightbox" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" style="max-width:95%;max-height:95%;border-radius:8px;object-fit:contain;box-shadow:0 4px 32px rgba(0,0,0,.5)">
+  <button onclick="closeLightbox()" style="position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;line-height:1">&#215;</button>
+</div>
 </body>
 </html>

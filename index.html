@@ -984,6 +984,7 @@ function editarLancamento(item, tipo){
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay);};
   document.getElementById('ed-save').onclick=function(){
     var payload={seq:item.seq,
+      row:item.row,
       originalDesc:item.desc,
       desc:document.getElementById('ed-desc').value.trim(),
       solicitante:document.getElementById('ed-sol').value.trim(),
@@ -1041,7 +1042,7 @@ function apagarLancamento(item){
   }
   if(!confirm('Apagar o lançamento nº '+item.seq+' ('+item.desc+')? Esta ação não pode ser desfeita na planilha.')) return;
   var sd=document.createElement('script');
-  sd.src=SCRIPT_URL+'?callback=_cbDel&action=apagar&payload='+encodeURIComponent(JSON.stringify({seq:item.seq,desc:item.desc,cliente:item.cliente,embarcacao:item.embarcacao}));
+  sd.src=SCRIPT_URL+'?callback=_cbDel&action=apagar&payload='+encodeURIComponent(JSON.stringify({seq:item.seq,row:item.row,desc:item.desc,cliente:item.cliente,embarcacao:item.embarcacao}));
   window._cbDel=function(res){
     sd.remove();
     if(res.status==='ok'){
@@ -1133,14 +1134,19 @@ function renderFotoLinksInto(container, linkStr){
   wrap.style.cssText='display:flex;flex-wrap:wrap;margin-top:6px';
   links.forEach(function(url,i){
     url=url.trim();
-    // Converte URL de visualização do Google Drive para URL direta de thumbnail
-    var thumbUrl=url;
+    // O link salvo na planilha é a página de visualização do Drive
+    // (".../file/d/ID/view"), que é uma página HTML — não uma imagem. Por
+    // isso, ao usar esse link direto num <img>, o navegador (inclusive no
+    // iPhone) mostra o ícone de imagem quebrada ("?" no quadrado azul).
+    // Convertemos para a URL de conteúdo direto do Drive (thumbnail em
+    // tamanho grande) tanto para a miniatura quanto para a foto ampliada.
     var m=url.match(/\/d\/([^\/]+)\//);
-    if(m) thumbUrl='https://drive.google.com/thumbnail?id='+m[1]+'&sz=w80';
+    var thumbUrl = m ? 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w80'  : url;
+    var bigUrl   = m ? 'https://drive.google.com/thumbnail?id='+m[1]+'&sz=w1600' : url;
     var span=document.createElement('span');
     span.className='foto-thumb-link';
     span.title='Ver foto '+(i+1);
-    span.onclick=function(){ openLightbox(url); };
+    span.onclick=function(){ openLightbox(bigUrl); };
     var img=document.createElement('img');
     img.src=thumbUrl;
     img.onerror=function(){ span.style.display='none'; };

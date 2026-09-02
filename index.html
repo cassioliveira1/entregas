@@ -510,7 +510,22 @@ function onPhotos(e){Array.from(e.target.files).forEach(f=>{const r=new FileRead
 function renderPhotos(){const g=document.getElementById('photo-grid');g.innerHTML='';S.photos.forEach((p,i)=>{const d=document.createElement('div');d.className='photo-thumb';d.innerHTML=`<img src="${p.data}"><button class="photo-del" onclick="removePhoto(${i})">×</button>`;g.appendChild(d)})}
 function removePhoto(i){S.photos.splice(i,1);renderPhotos()}
 
+let _enviando=false; // trava contra clique duplo / duplo toque
+
 function submitForm(){
+  // CORRIGIDO (causa provável dos lançamentos duplicados): antes, a tela de
+  // "sucesso" aparecia IMEDIATAMENTE ao clicar em enviar, sem esperar
+  // confirmação real do servidor, e o botão voltava a ficar habilitado quase
+  // na hora. Em conexões instáveis (comuns em embarcações), isso levava a
+  // duas situações que causavam duplicidade:
+  // 1) um duplo toque no botão (ex.: por achar que não tinha funcionado)
+  //    disparava dois envios antes de qualquer coisa mudar na tela;
+  // 2) se a resposta do servidor demorava ou se perdia, a pessoa não tinha
+  //    como saber se realmente gravou, e enviava tudo de novo manualmente.
+  // Agora: o botão fica travado e um indicador de carregamento aparece até
+  // a resposta REAL do servidor chegar (ou até 20s, com aviso claro).
+  if(_enviando) return;
+
   // sempre captura data e hora no momento do envio
   const now=new Date();
   const data=now.toISOString().split('T')[0];
@@ -523,16 +538,22 @@ function submitForm(){
   let mats=[];
   for(const id of S.items){const d=gv(id+'_d');if(!d){alert('Preencha a descrição de todos os itens');return}const tipo=gv(id+'_tipo')||'material';mats.push({desc:d,qtd:gv(id+'_q'),un:gv(id+'_u'),tipo:tipo,mov:tipo==='equipamento'?'entrega':''})}
   var anoAtual=new Date().getFullYear();if(S.ano&&anoAtual>S.ano){S.seq=1;S.ano=anoAtual;}var yyStr=String(S.ano||anoAtual).slice(-2);const num=String(S.seq).padStart(4,'0')+'/'+yyStr;
+
+  if(SCRIPT_URL==='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){alert('Configure a URL do Apps Script antes de enviar.');return}
+
+  _enviando=true;
   const btn=document.getElementById('submit-btn');btn.textContent='Enviando…';btn.disabled=true;
+  showLoading('Enviando lançamento…');
 
   const payload={seq:num,data,hora:hora,responsavel:por,cliente:cli,embarcacao:emb,etapa:eta,solicitante:gv('solicitante'),materiais:mats,obs:gv('obs')};
 
-  if(SCRIPT_URL!=='COLE_AQUI_A_URL_DO_APPS_SCRIPT'){
-    var _s=document.createElement('script');
-    _s.src=SCRIPT_URL+'?callback=cb&payload='+encodeURIComponent(JSON.stringify(payload));
-    _s.onload=function(){_s.remove();};
-    _s.onerror=function(){_s.remove();};
-    // Send fotos independently after a delay — don't depend on onload
+  function finalizarEnvio(){
+    _enviando=false;
+    hideLoading();
+    btn.textContent='Registrar entrega';btn.disabled=false;
+  }
+
+  function confirmarSucesso(){
     if(S.photos.length>0){
       S.photos.forEach(function(foto,fi){
         setTimeout(function(){
@@ -555,14 +576,38 @@ function submitForm(){
         }, 2000 + fi*1500); // stagger: 2s, 3.5s, 5s...
       });
     }
-    document.head.appendChild(_s);
+    const matStr=mats.map(function(m){var base=m.qtd?m.desc+' — '+m.qtd+' '+m.un:m.desc;var tag=m.tipo==='equipamento'?' [Equipamento/'+m.mov+']':'';return base+tag;}).join('; ');
+    document.getElementById('sv-num').textContent='Lançamento nº '+num;
+    document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data.split('-').reverse().join('/')}${hora?' às '+hora:''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${matStr}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
+    S.seq++;persist();
+    document.getElementById('fv').style.display='none';document.getElementById('sv').style.display='block';
   }
 
-  const matStr=mats.map(function(m){var base=m.qtd?m.desc+' — '+m.qtd+' '+m.un:m.desc;var tag=m.tipo==='equipamento'?' [Equipamento/'+m.mov+']':'';return base+tag;}).join('; ');
-  document.getElementById('sv-num').textContent='Lançamento nº '+num;
-  document.getElementById('sv-detail').innerHTML=`<strong>Data:</strong> ${data.split('-').reverse().join('/')}${hora?' às '+hora:''}<br><strong>Responsável:</strong> ${por}<br><strong>Cliente:</strong> ${cli} — ${emb}<br><strong>Etapa:</strong> ${eta}<br><strong>Materiais:</strong> ${matStr}<br>${gv('solicitante')?`<strong>Solicitante:</strong> ${gv('solicitante')}<br>`:''}${gv('obs')?`<strong>Obs:</strong> ${gv('obs')}`:''}`
-  S.seq++;persist();btn.textContent='Registrar entrega';btn.disabled=false;
-  document.getElementById('fv').style.display='none';document.getElementById('sv').style.display='block';
+  var _s=document.createElement('script');
+  _s.src=SCRIPT_URL+'?callback=_cbSubmit&payload='+encodeURIComponent(JSON.stringify(payload));
+  var submitTimeout=setTimeout(function(){
+    finalizarEnvio();
+    _s.remove();
+    alert('Não foi possível confirmar se o lançamento foi salvo (sem resposta do servidor). Verifique a planilha antes de tentar enviar de novo, para evitar duplicidade.');
+  }, 20000);
+  window._cbSubmit=function(res){
+    clearTimeout(submitTimeout);
+    _s.remove();
+    if(res && res.status==='ok'){
+      finalizarEnvio();
+      confirmarSucesso();
+    } else {
+      finalizarEnvio();
+      alert('Erro ao salvar o lançamento. Nada foi gravado — pode tentar enviar novamente.');
+    }
+  };
+  _s.onerror=function(){
+    clearTimeout(submitTimeout);
+    finalizarEnvio();
+    _s.remove();
+    alert('Erro de conexão. Verifique a planilha antes de tentar enviar de novo, para evitar duplicidade.');
+  };
+  document.head.appendChild(_s);
 }
 
 function reset(){
@@ -783,22 +828,27 @@ function _abrirDevolucaoModal(e){
     document.body.removeChild(overlay);
     var payload={seq:e.seq,responsavel:resp,cliente:e.cliente,embarcacao:e.embarcacao,
       etapa:e.etapa||'-',solicitante:e.solicitante||'',desc:e.desc,qtd:qtd,un:e.un};
+    showLoading('Registrando devolução…');
     var sd=document.createElement('script');
     sd.src=SCRIPT_URL+'?callback=_cbDev&action=devolver&payload='+encodeURIComponent(JSON.stringify(payload));
+    var devTimeout=setTimeout(function(){hideLoading();alert('Sem resposta do servidor. Verifique sua conexão e tente novamente.');},20000);
     window._cbDev=function(res){
+      clearTimeout(devTimeout);
+      hideLoading();
       sd.remove();
       if(res.status==='ok'){
-        var filtroEl=document.getElementById('equip-filtro');
-        if(filtroEl) filtroEl.value='devolvido';
+        // CORRIGIDO: antes, forçava o filtro para "Devolvidos" toda vez que
+        // uma devolução era registrada. Agora mantém o filtro que o usuário
+        // já tinha selecionado (não mexe em "equip-filtro").
         carregarEquip();
-        alert('Devolução registrada! O item foi movido para "Devolvidos".');
+        alert('Devolução registrada!');
       } else if(res.status==='nao_encontrado'){
         alert('Lançamento não encontrado. Verifique se já foi devolvido anteriormente.');
       } else {
         alert('Erro ao registrar. Tente novamente.');
       }
     };
-    sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
+    sd.onerror=function(){clearTimeout(devTimeout);hideLoading();sd.remove();alert('Erro de conexão.');};
     document.head.appendChild(sd);
   };
 }
@@ -1002,9 +1052,18 @@ function editarLancamento(item, tipo){
     document.body.removeChild(overlay);
     // Reset global edPhotos for next modal open
     edPhotos = [];
+    showLoading('Salvando alterações…');
     var sd=document.createElement('script');
     sd.src=SCRIPT_URL+'?callback=_cbEdit&action=editar&payload='+encodeURIComponent(JSON.stringify(payload));
+    // Segurança: se o servidor não responder em 20s (conexão ruim/instável),
+    // esconde o indicador de carregamento e avisa, em vez de travar a tela.
+    var edTimeout=setTimeout(function(){
+      hideLoading();
+      alert('Sem resposta do servidor. Verifique sua conexão e tente novamente.');
+    }, 20000);
     window._cbEdit=function(res){
+      clearTimeout(edTimeout);
+      hideLoading();
       sd.remove();
       if(res.status==='ok'||res.status==='nao_encontrado'){
         // Send captured photos using local variable (not global edPhotos)
@@ -1029,7 +1088,7 @@ function editarLancamento(item, tipo){
         alert('Erro ao salvar. Tente novamente.');
       }
     };
-    sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
+    sd.onerror=function(){clearTimeout(edTimeout);hideLoading();sd.remove();alert('Erro de conexão.');};
     document.head.appendChild(sd);
   };
 }
@@ -1041,9 +1100,13 @@ function apagarLancamento(item){
     return;
   }
   if(!confirm('Apagar o lançamento nº '+item.seq+' ('+item.desc+')? Esta ação não pode ser desfeita na planilha.')) return;
+  showLoading('Apagando…');
   var sd=document.createElement('script');
   sd.src=SCRIPT_URL+'?callback=_cbDel&action=apagar&payload='+encodeURIComponent(JSON.stringify({seq:item.seq,row:item.row,desc:item.desc,cliente:item.cliente,embarcacao:item.embarcacao}));
+  var delTimeout=setTimeout(function(){hideLoading();alert('Sem resposta do servidor. Verifique sua conexão e tente novamente.');},20000);
   window._cbDel=function(res){
+    clearTimeout(delTimeout);
+    hideLoading();
     sd.remove();
     if(res.status==='ok'){
       alert('Lançamento apagado!');carregarMats();carregarEquip();
@@ -1053,7 +1116,7 @@ function apagarLancamento(item){
       alert('Erro ao apagar. Tente novamente.');
     }
   };
-  sd.onerror=function(){sd.remove();alert('Erro de conexão.');};
+  sd.onerror=function(){clearTimeout(delTimeout);hideLoading();sd.remove();alert('Erro de conexão.');};
   document.head.appendChild(sd);
 }
 
@@ -1122,6 +1185,38 @@ function closeLightbox(){
   var lb=document.getElementById('lightbox');
   if(lb) lb.style.display='none';
   document.body.style.overflow='';
+}
+
+// ── Indicador de carregamento reutilizável ─────────────────────────────────
+// Mostra um overlay com spinner + mensagem enquanto uma operação (salvar,
+// editar, excluir, devolver) está em andamento, e só remove quando a
+// resposta do servidor realmente chega — evitando a sensação de "trava" e,
+// principalmente, evitando que a pessoa clique de novo achando que não
+// funcionou (causa provável de lançamentos duplicados na planilha).
+var _loadingOverlay=null;
+function showLoading(msg){
+  hideLoading();
+  var ov=document.createElement('div');
+  ov.id='loading-overlay';
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.85);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px';
+  var spinner=document.createElement('div');
+  spinner.style.cssText='width:40px;height:40px;border:4px solid var(--border,#E5E7EB);border-top-color:var(--accent,#2563EB);border-radius:50%;animation:spin838 .8s linear infinite';
+  var label=document.createElement('div');
+  label.textContent=msg||'Processando…';
+  label.style.cssText='font-size:14px;font-weight:500;color:var(--text,#111827)';
+  ov.appendChild(spinner);ov.appendChild(label);
+  document.body.appendChild(ov);
+  _loadingOverlay=ov;
+  if(!document.getElementById('spin838-style')){
+    var st=document.createElement('style');
+    st.id='spin838-style';
+    st.textContent='@keyframes spin838{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st);
+  }
+}
+function hideLoading(){
+  if(_loadingOverlay&&_loadingOverlay.parentNode){_loadingOverlay.parentNode.removeChild(_loadingOverlay);}
+  _loadingOverlay=null;
 }
 
 function renderFotoLinksInto(container, linkStr){
